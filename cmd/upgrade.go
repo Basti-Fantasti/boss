@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/hashload/boss/internal/upgrade"
+	"github.com/hashload/boss/msg"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +16,10 @@ var upgradeCmd = &cobra.Command{
   Upgrade boss with pre-release:
   boss upgrade --dev`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return upgrade.BossUpgrade(preRelease)
+		msg.Info("To avoid upgrading to main version,")
+		msg.Info("Upgrade function has been disabled for this custom build!")
+		msg.Info("To go back to main build, download the release from the original repo")
+		return nil
 	},
 }
 
