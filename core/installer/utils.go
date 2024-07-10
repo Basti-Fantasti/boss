@@ -31,7 +31,11 @@ func EnsureDependencyOfArgs(pkg *models.Package, args []string) {
 		}
 
 		if strings.HasSuffix(strings.ToLower(dep), ".git") {
-			dep = dep[:len(dep)-4]
+			if strings.HasPrefix(strings.ToLower(dep), "git@") {
+				dep = dep
+			} else {
+				dep = dep[:len(dep)-4]
+			}
 		}
 
 		pkg.AddDependency(dep, ver)

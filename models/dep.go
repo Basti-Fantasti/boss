@@ -55,10 +55,14 @@ func (p *Dependency) GetURL() string {
 		}
 	}
 	var hasHttp = regexp.MustCompile(`(?m)^https?:\/\/`)
-	if hasHttp.MatchString(p.Repository) {
+	if strings.HasPrefix(p.Repository, "git@") {
 		return p.Repository
 	} else {
-		return "https://" + p.Repository
+		if hasHttp.MatchString(p.Repository) {
+			return p.Repository
+		} else {
+			return "https://" + p.Repository
+		}
 	}
 }
 
@@ -103,6 +107,13 @@ func GetDependenciesNames(deps []Dependency) []string {
 }
 
 func (p *Dependency) GetName() string {
+	var dup string
 	var re = regexp.MustCompile(`[^/]+(:?/$|$)`)
-	return re.FindString(p.Repository)
+	dup = re.FindString(p.Repository)
+	if strings.HasSuffix(strings.ToLower(dup), ".git") {
+		return dup[:len(dup)-4]
+	} else {
+		return dup
+	}
+
 }
