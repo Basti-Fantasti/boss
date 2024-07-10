@@ -6,9 +6,9 @@ import (
 )
 
 var (
-	version = "v0.0.1"
+	version = "v3.0.12"
 
-	metadata  = ""
+	metadata  = "Gitlab SSH Mod"
 	gitCommit = ""
 )
 
@@ -25,7 +25,7 @@ func GetVersion() string {
 	if metadata == "" {
 		return version
 	}
-	return version + "+" + metadata
+	return version + " + " + metadata
 }
 
 // Get returns build info
