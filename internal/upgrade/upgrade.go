@@ -16,12 +16,6 @@ import (
 	"github.com/minio/selfupdate"
 )
 
-//nolint:gochecknoglobals // branding vars sourced from consts to allow test overrides
-var (
-	githubOrganization = consts.GithubOrganization
-	githubRepository   = consts.GithubRepository
-)
-
 // BossUpgrade performs the self-update of the boss executable.
 // It checks for the latest release on GitHub, downloads it, and applies the update.
 func BossUpgrade(preRelease bool) error {

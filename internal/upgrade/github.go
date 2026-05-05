@@ -15,6 +15,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v69/github"
 	"github.com/snakeice/gogress"
+
+	"github.com/basti-fantasti/bossy/pkg/consts"
 )
 
 // getBossReleases returns the boss releases.
@@ -31,8 +33,8 @@ func getBossReleases() ([]*github.RepositoryRelease, error) {
 
 		releasesPage, resp, err := gh.Repositories.ListReleases(
 			context.Background(),
-			githubOrganization,
-			githubRepository,
+			consts.GithubOrganization,
+			consts.GithubRepository,
 			&listOptions,
 		)
 

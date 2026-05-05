@@ -97,6 +97,8 @@ func ParseDependency(repo string, info string) Dependency {
 		dependency.version += ".0.0"
 	}
 	if len(parsed) > 1 {
+		// TODO(Task 11): the entire `:ssh` suffix block is removed when the
+		// per-dep override moves to first-class URL forms via the auth package.
 		dependency.UseSSH = parsed[1] == "ssh"
 	}
 	return dependency
