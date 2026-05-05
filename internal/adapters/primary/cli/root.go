@@ -4,18 +4,40 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/basti-fantasti/bossy/internal/adapters/primary/cli/config"
 	"github.com/basti-fantasti/bossy/internal/core/services/gc"
+	"github.com/basti-fantasti/bossy/internal/migrate"
 	"github.com/basti-fantasti/bossy/pkg/env"
 	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/basti-fantasti/bossy/setup"
+	homedir "github.com/mitchellh/go-homedir"
 
 	"github.com/spf13/cobra"
 )
 
+// runMigrations runs one-shot idempotent migrations before any command executes.
+// MigrateHome copies ~/.boss → ~/.bossy so subsequent runs find the config in
+// the new location. MigrateBossJSON rewrites :ssh version suffixes to SSH URL
+// keys in the project boss.json. Both must run before setup.Initialize so that
+// any newly migrated files are visible to the rest of startup.
+func runMigrations() {
+	if home, err := homedir.Dir(); err == nil {
+		if moved, _ := migrate.MigrateHome(home); moved {
+			msg.Info("ℹ️  Migrated ~/.boss to ~/.bossy")
+		}
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		if changed, _ := migrate.MigrateBossJSON(filepath.Join(cwd, "boss.json")); changed {
+			msg.Info("ℹ️  Migrated boss.json (:ssh suffix → SSH URL keys)")
+		}
+	}
+}
+
 // Execute executes the root command.
 func Execute() error {
+	runMigrations()
 	var versionPrint bool
 	var global bool
 	var debug bool
