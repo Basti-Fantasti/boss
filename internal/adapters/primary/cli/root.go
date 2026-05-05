@@ -25,6 +25,7 @@ import (
 func runMigrations() {
 	if home, err := homedir.Dir(); err == nil {
 		if moved, _ := migrate.MigrateHome(home); moved {
+			env.ReloadGlobalConfiguration()
 			msg.Info("ℹ️  Migrated ~/.boss to ~/.bossy")
 		}
 	}

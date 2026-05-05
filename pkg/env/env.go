@@ -54,6 +54,14 @@ func GlobalConfiguration() *Configuration {
 	return globalConfiguration
 }
 
+// ReloadGlobalConfiguration reloads the package-level configuration from disk.
+// Used by the migration code in internal/migrate, which must run after
+// package init has already loaded an empty/fresh config from a path that
+// did not yet exist.
+func ReloadGlobalConfiguration() {
+	globalConfiguration, _ = LoadConfiguration(GetBossHome())
+}
+
 // HashDelphiPath returns the hash of the Delphi path.
 func HashDelphiPath() string {
 	//nolint:gosec // We are not using this for security purposes

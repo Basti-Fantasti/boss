@@ -103,6 +103,19 @@ func TestMigrateBossJSON_NoChange(t *testing.T) {
 	}
 }
 
+// TestReloadAfterMigration documents the expected behavior when MigrateHome runs
+// after package init in pkg/env has already loaded a fresh default config from
+// the not-yet-existing ~/.bossy directory. The fix calls env.ReloadGlobalConfiguration()
+// inside runMigrations (internal/adapters/primary/cli/root.go) immediately after
+// MigrateHome returns moved == true, so the in-memory globalConfiguration is
+// replaced with the just-migrated on-disk data before any command runs.
+// A true integration test is impractical here because pkg/env globals cannot be
+// safely reset between test runs in the same process; the real guard is the call
+// site in root.go.
+func TestReloadAfterMigration(t *testing.T) {
+	t.Skip("integration test — see runMigrations in internal/adapters/primary/cli/root.go")
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {
