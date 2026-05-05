@@ -95,13 +95,8 @@ func seven() {
 			env.GlobalConfiguration().Auth[key].SetPass(decryptedPassword)
 		}
 
-		if passPhrase, found := authMap["z"]; found {
-			decryptedPassPhrase, err := oldDecrypt(passPhrase)
-			if err != nil {
-				msg.Die("❌ Migration 7: critical - failed to decrypt passphrase for %s: %v", key, err)
-			}
-			env.GlobalConfiguration().Auth[key].SetPassPhrase(decryptedPassPhrase)
-		}
+		// SSH passphrase ("z") is no longer migrated — SSH credentials are
+		// no longer stored; they come from ssh-agent / ~/.ssh/config.
 	}
 }
 

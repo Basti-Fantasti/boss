@@ -135,19 +135,6 @@ func TestConfiguration_SaveConfiguration(t *testing.T) {
 	}
 }
 
-func TestConfiguration_GetAuth_Nil(t *testing.T) {
-	tempDir := t.TempDir()
-
-	config, _ := env.LoadConfiguration(tempDir)
-
-	// GetAuth for non-existent repo should return nil
-	auth := config.GetAuth("nonexistent-repo")
-
-	if auth != nil {
-		t.Error("GetAuth() for non-existent repo should return nil")
-	}
-}
-
 func TestAuth_SetAndGetUser(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -182,59 +169,34 @@ func TestAuth_SetAndGetPassword(t *testing.T) {
 	}
 }
 
-func TestAuth_SetAndGetPassPhrase(t *testing.T) {
+func TestConfiguration_GetHTTPSCredentials_Missing(t *testing.T) {
 	tempDir := t.TempDir()
 
 	config, _ := env.LoadConfiguration(tempDir)
 
-	// Create a new auth entry
+	_, _, ok := config.GetHTTPSCredentials("nonexistent.example.com")
+	if ok {
+		t.Error("GetHTTPSCredentials() for missing host should return ok=false")
+	}
+}
+
+func TestConfiguration_GetHTTPSCredentials_Present(t *testing.T) {
+	tempDir := t.TempDir()
+
+	config, _ := env.LoadConfiguration(tempDir)
+
 	config.Auth["github.com"] = &env.Auth{}
-	config.Auth["github.com"].SetPassPhrase("testphrase")
+	config.Auth["github.com"].SetUser("alice")
+	config.Auth["github.com"].SetPass("s3cret")
 
-	// Get the passphrase back
-	phrase := config.Auth["github.com"].GetPassPhrase()
-
-	if phrase != "testphrase" {
-		t.Errorf("GetPassPhrase() = %q, want %q", phrase, "testphrase")
+	user, pass, ok := config.GetHTTPSCredentials("github.com")
+	if !ok {
+		t.Fatal("GetHTTPSCredentials() should return ok=true for existing host")
 	}
-}
-
-func TestAuth_UseSSH_Flag(t *testing.T) {
-	auth := &env.Auth{
-		UseSSH: true,
-		Path:   "/path/to/key",
+	if user != "alice" {
+		t.Errorf("user = %q, want %q", user, "alice")
 	}
-
-	if !auth.UseSSH {
-		t.Error("UseSSH should be true")
-	}
-
-	if auth.Path != "/path/to/key" {
-		t.Errorf("Path = %q, want %q", auth.Path, "/path/to/key")
-	}
-}
-
-func TestConfiguration_GetAuth_BasicAuth(t *testing.T) {
-	tempDir := t.TempDir()
-
-	config, _ := env.LoadConfiguration(tempDir)
-
-	// Create auth entry with basic auth (UseSSH = false)
-	config.Auth["github.com"] = &env.Auth{
-		UseSSH: false,
-	}
-	config.Auth["github.com"].SetUser("user")
-	config.Auth["github.com"].SetPass("pass")
-
-	// GetAuth should return BasicAuth
-	auth := config.GetAuth("github.com")
-
-	if auth == nil {
-		t.Error("GetAuth() should return auth method for existing repo")
-	}
-
-	// Type should be BasicAuth
-	if auth.Name() != "http-basic-auth" {
-		t.Errorf("Auth type = %q, want http-basic-auth", auth.Name())
+	if pass != "s3cret" {
+		t.Errorf("pass = %q, want %q", pass, "s3cret")
 	}
 }

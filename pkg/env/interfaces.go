@@ -2,8 +2,6 @@ package env
 
 import (
 	"time"
-
-	"github.com/go-git/go-git/v5/plumbing/transport"
 )
 
 // ConfigProvider defines the interface for configuration access.
@@ -11,7 +9,6 @@ import (
 type ConfigProvider interface {
 	GetDelphiPath() string
 	GetGitEmbedded() bool
-	GetAuth(repo string) transport.AuthMethod
 	GetPurgeTime() int
 	GetInternalRefreshRate() int
 	GetLastPurge() time.Time

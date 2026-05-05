@@ -6,13 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	sshGit "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/basti-fantasti/bossy/pkg/consts"
 	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/basti-fantasti/bossy/utils/crypto"
-	"golang.org/x/crypto/ssh"
 )
 
 // Configuration represents the global configuration for Boss.
@@ -40,13 +36,12 @@ type Configuration struct {
 	} `json:"advices"`
 }
 
-// Auth represents authentication credentials for a repository.
+// Auth represents stored HTTPS basic-auth credentials for a given host.
+// SSH credentials are no longer stored — they come from ssh-agent and
+// ~/.ssh/config via the system git binary.
 type Auth struct {
-	UseSSH     bool   `json:"use,omitempty"`
-	Path       string `json:"path,omitempty"`
-	User       string `json:"user,omitempty"`
-	Pass       string `json:"pass,omitempty"`
-	PassPhrase string `json:"keypass,omitempty"`
+	User string `json:"user,omitempty"`
+	Pass string `json:"pass,omitempty"`
 }
 
 // GetUser returns the decrypted username.
@@ -70,16 +65,6 @@ func (a *Auth) GetPassword() string {
 	return ret
 }
 
-// GetPassPhrase returns the decrypted passphrase.
-func (a *Auth) GetPassPhrase() string {
-	ret, err := crypto.Decrypt(crypto.MachineKey(), a.PassPhrase)
-	if err != nil {
-		msg.Die("❌ Failed to decrypt PassPhrase: %s", err)
-		return ""
-	}
-	return ret
-}
-
 // SetUser encrypts and sets the username.
 func (a *Auth) SetUser(user string) {
 	if encryptedUser, err := crypto.Encrypt(crypto.MachineKey(), user); err != nil {
@@ -98,43 +83,14 @@ func (a *Auth) SetPass(pass string) {
 	}
 }
 
-// SetPassPhrase encrypts and sets the passphrase.
-func (a *Auth) SetPassPhrase(passphrase string) {
-	if cPassPhrase, err := crypto.Encrypt(crypto.MachineKey(), passphrase); err != nil {
-		msg.Die("❌ Failed to crypt PassPhrase: %s", err)
-	} else {
-		a.PassPhrase = cPassPhrase
+// GetHTTPSCredentials returns stored HTTPS basic-auth for a host, or
+// (false) if none. Implements auth.CredentialStore.
+func (c *Configuration) GetHTTPSCredentials(host string) (string, string, bool) {
+	a, ok := c.Auth[host]
+	if !ok || a == nil {
+		return "", "", false
 	}
-}
-
-// GetAuth returns the authentication method for a repository.
-func (c *Configuration) GetAuth(repo string) transport.AuthMethod {
-	auth := c.Auth[repo]
-
-	switch {
-	case auth == nil:
-		return nil
-	case auth.UseSSH:
-		pem, err := os.ReadFile(auth.Path)
-		if err != nil {
-			msg.Die("❌ Failed to open ssh key %s", err)
-		}
-		var signer ssh.Signer
-
-		if auth.GetPassPhrase() != "" {
-			signer, err = ssh.ParsePrivateKeyWithPassphrase(pem, []byte(auth.GetPassPhrase()))
-		} else {
-			signer, err = ssh.ParsePrivateKey(pem)
-		}
-
-		if err != nil {
-			msg.Die("❌ Failed to parse SSH private key: %v", err)
-		}
-		return &sshGit.PublicKeys{User: "git", Signer: signer}
-
-	default:
-		return &http.BasicAuth{Username: auth.GetUser(), Password: auth.GetPassword()}
-	}
+	return a.GetUser(), a.GetPassword(), true
 }
 
 // SaveConfiguration saves the configuration to disk.

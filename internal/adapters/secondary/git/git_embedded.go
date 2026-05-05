@@ -26,12 +26,11 @@ func CloneCacheEmbedded(config env.ConfigProvider, dep domain.Dependency) (*git.
 	storageCache := makeStorageCache(config, dep)
 	worktreeFileSystem := createWorktreeFs(config, dep)
 	url := dep.GetURL()
-	auth := config.GetAuth(dep.GetURLPrefix())
 
 	cloneOpts := &git.CloneOptions{
 		URL:  url,
 		Tags: git.AllTags,
-		Auth: auth,
+		Auth: nil, // TODO(Task 12): pass auth.Decision-derived credentials
 	}
 
 	if env.GetGitShallow() {
@@ -73,7 +72,8 @@ func UpdateCacheEmbedded(config env.ConfigProvider, dep domain.Dependency) (*git
 
 	err = repository.Fetch(&git.FetchOptions{
 		Force: true,
-		Auth:  config.GetAuth(dep.GetURLPrefix())})
+		Auth:  nil, // TODO(Task 12): pass auth.Decision-derived credentials
+	})
 	if err != nil && err.Error() != "already up-to-date" {
 		msg.Debug("Error to fetch repository of %s: %s", dep.Repository, err)
 	}
@@ -131,6 +131,6 @@ func PullEmbedded(config env.ConfigProvider, dep domain.Dependency) error {
 	}
 	return worktree.Pull(&git.PullOptions{
 		Force: true,
-		Auth:  config.GetAuth(dep.GetURLPrefix()),
+		Auth:  nil, // TODO(Task 12): pass auth.Decision-derived credentials
 	})
 }

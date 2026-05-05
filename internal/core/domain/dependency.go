@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/basti-fantasti/bossy/pkg/env"
-
 	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
@@ -62,14 +60,9 @@ func (p *Dependency) GetURLPrefix() string {
 }
 
 // GetURL returns the full URL for the repository, handling SSH and HTTPS.
+// SSH selection is now determined by the dep's own UseSSH flag only;
+// stored credentials are HTTPS-only (auth.CredentialStore).
 func (p *Dependency) GetURL() string {
-	prefix := p.GetURLPrefix()
-	auth := env.GlobalConfiguration().Auth[prefix]
-	if auth != nil {
-		if auth.UseSSH {
-			return p.SSHUrl()
-		}
-	}
 	if p.UseSSH {
 		return p.SSHUrl()
 	}

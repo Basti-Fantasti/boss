@@ -46,7 +46,7 @@ func initSubmodules(config env.ConfigProvider, dep domain.Dependency, repository
 	err = submodules.Update(&goGit.SubmoduleUpdateOptions{
 		Init:              true,
 		RecurseSubmodules: goGit.DefaultSubmoduleRecursionDepth,
-		Auth:              config.GetAuth(dep.GetURLPrefix()),
+		Auth:              nil, // TODO(Task 12): pass auth.Decision-derived credentials
 	})
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func GetVersions(config env.ConfigProvider, repository *goGit.Repository, dep do
 	err := repository.Fetch(&goGit.FetchOptions{
 		Force: true,
 		Prune: true,
-		Auth:  config.GetAuth(dep.GetURLPrefix()),
+		Auth:  nil, // TODO(Task 12): pass auth.Decision-derived credentials
 		RefSpecs: []gitConfig.RefSpec{
 			"refs/*:refs/*",
 			"HEAD:refs/heads/HEAD",

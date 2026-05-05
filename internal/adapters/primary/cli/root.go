@@ -51,7 +51,6 @@ func Execute() error {
 	config.RegisterConfigCommand(root)
 	initCmdRegister(root)
 	installCmdRegister(root)
-	loginCmdRegister(root)
 	runCmdRegister(root)
 	uninstallCmdRegister(root)
 	updateCmdRegister(root)
