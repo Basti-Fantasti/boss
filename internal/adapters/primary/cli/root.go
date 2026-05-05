@@ -49,6 +49,7 @@ func Execute() error {
 	setup.Initialize()
 
 	config.RegisterConfigCommand(root)
+	authCmdRegister(root)
 	initCmdRegister(root)
 	installCmdRegister(root)
 	runCmdRegister(root)
