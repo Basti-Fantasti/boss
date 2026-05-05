@@ -6,32 +6,40 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-git/go-billy/v5"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/services/auth"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/go-git/go-billy/v5/memfs"
-	"github.com/go-git/go-billy/v5/osfs"
+	gogitosfs "github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	cache2 "github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	httpAuth "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage"
 	"github.com/go-git/go-git/v5/storage/filesystem"
-	"github.com/basti-fantasti/bossy/internal/core/domain"
-	"github.com/basti-fantasti/bossy/internal/core/services/paths"
-	"github.com/basti-fantasti/bossy/pkg/env"
-	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
+// httpsAuth converts a Decision's credential into a go-git auth method.
+// Returns nil when no credentials are needed.
+func httpsAuth(d auth.Decision) transport.AuthMethod {
+	if d.Credential.User == "" && d.Credential.Password == "" {
+		return nil
+	}
+	return &httpAuth.BasicAuth{Username: d.Credential.User, Password: d.Credential.Password}
+}
+
 // CloneCacheEmbedded clones the dependency repository to the cache using the embedded git implementation.
-func CloneCacheEmbedded(config env.ConfigProvider, dep domain.Dependency) (*git.Repository, error) {
+func CloneCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Repository, error) {
 	msg.Info("📥 Downloading dependency %s", dep.Repository)
-	storageCache := makeStorageCache(config, dep)
-	worktreeFileSystem := createWorktreeFs(config, dep)
-	// TODO(Task 12): replace dep.Repository with auth.Resolve(dep).URL for full protocol/credential handling
-	url := dep.Repository
+	storageCache := makeStorageCacheNoCfg(dep)
+	worktreeFileSystem := memfs.New()
 
 	cloneOpts := &git.CloneOptions{
-		URL:  url,
+		URL:  decision.URL,
 		Tags: git.AllTags,
-		Auth: nil, // TODO(Task 12): pass auth.Decision-derived credentials
+		Auth: httpsAuth(decision),
 	}
 
 	if env.GetGitShallow() {
@@ -45,22 +53,22 @@ func CloneCacheEmbedded(config env.ConfigProvider, dep domain.Dependency) (*git.
 		_ = os.RemoveAll(filepath.Join(env.GetCacheDir(), dep.HashName()))
 		return nil, err
 	}
-	if err := initSubmodules(config, dep, repository); err != nil {
+	if err := initSubmodules(dep, decision, repository); err != nil {
 		return nil, err
 	}
 	return repository, nil
 }
 
 // UpdateCacheEmbedded updates the dependency repository in the cache using the embedded git implementation.
-func UpdateCacheEmbedded(config env.ConfigProvider, dep domain.Dependency) (*git.Repository, error) {
-	storageCache := makeStorageCache(config, dep)
-	wtFs := createWorktreeFs(config, dep)
+func UpdateCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Repository, error) {
+	storageCache := makeStorageCacheNoCfg(dep)
+	wtFs := memfs.New()
 
 	repository, err := git.Open(storageCache, wtFs)
 	if err != nil {
 		msg.Warn("⚠️ Error to open cache of %s: %s", dep.Repository, err)
 		var errRefresh error
-		repository, errRefresh = refreshCopy(config, dep)
+		repository, errRefresh = refreshCopy(dep, decision)
 		if errRefresh != nil {
 			return nil, errRefresh
 		}
@@ -73,22 +81,22 @@ func UpdateCacheEmbedded(config env.ConfigProvider, dep domain.Dependency) (*git
 
 	err = repository.Fetch(&git.FetchOptions{
 		Force: true,
-		Auth:  nil, // TODO(Task 12): pass auth.Decision-derived credentials
+		Auth:  httpsAuth(decision),
 	})
 	if err != nil && err.Error() != "already up-to-date" {
 		msg.Debug("Error to fetch repository of %s: %s", dep.Repository, err)
 	}
-	if err := initSubmodules(config, dep, repository); err != nil {
+	if err := initSubmodules(dep, decision, repository); err != nil {
 		return nil, err
 	}
 	return repository, nil
 }
 
-func refreshCopy(config env.ConfigProvider, dep domain.Dependency) (*git.Repository, error) {
+func refreshCopy(dep domain.Dependency, decision auth.Decision) (*git.Repository, error) {
 	dir := filepath.Join(env.GetCacheDir(), dep.HashName())
 	err := os.RemoveAll(dir)
 	if err == nil {
-		return CloneCacheEmbedded(config, dep)
+		return CloneCacheEmbedded(dep, decision)
 	}
 
 	msg.Err("❌ Error on retry get refresh copy: %s", err)
@@ -96,23 +104,18 @@ func refreshCopy(config env.ConfigProvider, dep domain.Dependency) (*git.Reposit
 	return nil, err
 }
 
-func makeStorageCache(config env.ConfigProvider, dep domain.Dependency) storage.Storer {
-	paths.EnsureCacheDir(config, dep)
-	dir := filepath.Join(env.GetCacheDir(), dep.HashName())
-	fs := osfs.New(dir)
-
-	newStorage := filesystem.NewStorage(fs, cache2.NewObjectLRUDefault())
-	return newStorage
+// makeStorageCacheNoCfg creates filesystem-backed storage for the dependency cache,
+// creating the cache directory if it does not already exist.
+func makeStorageCacheNoCfg(dep domain.Dependency) storage.Storer {
+	cacheDir := filepath.Join(env.GetCacheDir(), dep.HashName())
+	if err := os.MkdirAll(cacheDir, 0755); err != nil { //nolint:mnd // Standard directory permissions
+		msg.Die("❌ Could not create %s: %s", cacheDir, err)
+	}
+	fs := gogitosfs.New(cacheDir)
+	return filesystem.NewStorage(fs, cache2.NewObjectLRUDefault())
 }
 
-func createWorktreeFs(config env.ConfigProvider, dep domain.Dependency) billy.Filesystem {
-	paths.EnsureCacheDir(config, dep)
-	fs := memfs.New()
-
-	return fs
-}
-
-func CheckoutEmbedded(_ env.ConfigProvider, dep domain.Dependency, referenceName plumbing.ReferenceName) error {
+func CheckoutEmbedded(dep domain.Dependency, referenceName plumbing.ReferenceName) error {
 	repository := GetRepository(dep)
 	worktree, err := repository.Worktree()
 	if err != nil {
@@ -124,7 +127,7 @@ func CheckoutEmbedded(_ env.ConfigProvider, dep domain.Dependency, referenceName
 	})
 }
 
-func PullEmbedded(config env.ConfigProvider, dep domain.Dependency) error {
+func PullEmbedded(dep domain.Dependency, decision auth.Decision) error {
 	repository := GetRepository(dep)
 	worktree, err := repository.Worktree()
 	if err != nil {
@@ -132,6 +135,6 @@ func PullEmbedded(config env.ConfigProvider, dep domain.Dependency) error {
 	}
 	return worktree.Pull(&git.PullOptions{
 		Force: true,
-		Auth:  nil, // TODO(Task 12): pass auth.Decision-derived credentials
+		Auth:  httpsAuth(decision),
 	})
 }

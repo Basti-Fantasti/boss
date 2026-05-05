@@ -5,35 +5,46 @@ package gitadapter
 import (
 	"path/filepath"
 
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/services/auth"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/go-git/go-billy/v5/osfs"
 	goGit "github.com/go-git/go-git/v5"
 	gitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/basti-fantasti/bossy/internal/core/domain"
-	"github.com/basti-fantasti/bossy/pkg/consts"
-	"github.com/basti-fantasti/bossy/pkg/env"
-	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // CloneCache clones the dependency repository to the cache.
-func CloneCache(config env.ConfigProvider, dep domain.Dependency) (*goGit.Repository, error) {
-	if config.GetGitEmbedded() {
-		return CloneCacheEmbedded(config, dep)
+// The config parameter is retained for upstream cherry-pick stability but is unused;
+// transport selection is driven entirely by auth.Resolve.
+func CloneCache(_ env.ConfigProvider, dep domain.Dependency) (*goGit.Repository, error) {
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		return nil, err
 	}
-
-	return CloneCacheNative(dep)
+	if decision.Transport == auth.TransportSSH {
+		return CloneCacheNative(dep, decision)
+	}
+	return CloneCacheEmbedded(dep, decision)
 }
 
 // UpdateCache updates the dependency repository in the cache.
-func UpdateCache(config env.ConfigProvider, dep domain.Dependency) (*goGit.Repository, error) {
-	if config.GetGitEmbedded() {
-		return UpdateCacheEmbedded(config, dep)
+// The config parameter is retained for upstream cherry-pick stability but is unused;
+// transport selection is driven entirely by auth.Resolve.
+func UpdateCache(_ env.ConfigProvider, dep domain.Dependency) (*goGit.Repository, error) {
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		return nil, err
 	}
-
-	return UpdateCacheNative(dep)
+	if decision.Transport == auth.TransportSSH {
+		return UpdateCacheNative(dep, decision)
+	}
+	return UpdateCacheEmbedded(dep, decision)
 }
 
-func initSubmodules(config env.ConfigProvider, dep domain.Dependency, repository *goGit.Repository) error {
+func initSubmodules(_ domain.Dependency, decision auth.Decision, repository *goGit.Repository) error {
 	worktree, err := repository.Worktree()
 	if err != nil {
 		return err
@@ -46,7 +57,7 @@ func initSubmodules(config env.ConfigProvider, dep domain.Dependency, repository
 	err = submodules.Update(&goGit.SubmoduleUpdateOptions{
 		Init:              true,
 		RecurseSubmodules: goGit.DefaultSubmoduleRecursionDepth,
-		Auth:              nil, // TODO(Task 12): pass auth.Decision-derived credentials
+		Auth:              httpsAuth(decision),
 	})
 	if err != nil {
 		return err
@@ -64,13 +75,18 @@ func GetMain(repository *goGit.Repository) (*gitConfig.Branch, error) {
 }
 
 // GetVersions returns all versions (tags and branches) of the repository.
-func GetVersions(config env.ConfigProvider, repository *goGit.Repository, dep domain.Dependency) []*plumbing.Reference {
+func GetVersions(_ env.ConfigProvider, repository *goGit.Repository, dep domain.Dependency) []*plumbing.Reference {
 	var result = make([]*plumbing.Reference, 0)
 
-	err := repository.Fetch(&goGit.FetchOptions{
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		msg.Warn("⚠️ Fail to resolve auth for %s: %s", dep.Repository, err)
+	}
+
+	err = repository.Fetch(&goGit.FetchOptions{
 		Force: true,
 		Prune: true,
-		Auth:  nil, // TODO(Task 12): pass auth.Decision-derived credentials
+		Auth:  httpsAuth(decision),
 		RefSpecs: []gitConfig.RefSpec{
 			"refs/*:refs/*",
 			"HEAD:refs/heads/HEAD",
@@ -147,16 +163,24 @@ func GetRepository(dep domain.Dependency) *goGit.Repository {
 	return repository
 }
 
-func Checkout(config env.ConfigProvider, dep domain.Dependency, referenceName plumbing.ReferenceName) error {
-	if config.GetGitEmbedded() {
-		return CheckoutEmbedded(config, dep, referenceName)
+func Checkout(_ env.ConfigProvider, dep domain.Dependency, referenceName plumbing.ReferenceName) error {
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		return err
 	}
-	return CheckoutNative(dep, referenceName)
+	if decision.Transport == auth.TransportSSH {
+		return CheckoutNative(dep, referenceName)
+	}
+	return CheckoutEmbedded(dep, referenceName)
 }
 
-func Pull(config env.ConfigProvider, dep domain.Dependency) error {
-	if config.GetGitEmbedded() {
-		return PullEmbedded(config, dep)
+func Pull(_ env.ConfigProvider, dep domain.Dependency) error {
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		return err
 	}
-	return PullNative(dep)
+	if decision.Transport == auth.TransportSSH {
+		return PullNative(dep)
+	}
+	return PullEmbedded(dep, decision)
 }

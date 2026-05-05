@@ -4,46 +4,54 @@ package gitadapter
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 
-	git2 "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/services/auth"
 	"github.com/basti-fantasti/bossy/pkg/env"
 	"github.com/basti-fantasti/bossy/pkg/msg"
+	git2 "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
-func checkHasGitClient() {
-	command := exec.Command("where", "git")
-	_, err := command.Output()
-	if err != nil {
-		msg.Die("❌ 'git.exe' not found in path")
+// requireGit checks that the system git binary is on PATH. SSH transports
+// require it; we hard-fail with a clear message if it's missing.
+func requireGit() error {
+	if _, err := exec.LookPath("git"); err != nil {
+		return errors.New("SSH cloning requires `git` to be installed and on PATH. " +
+			"Install git, or change the dependency to an HTTPS URL")
 	}
+	return nil
 }
 
 // CloneCacheNative clones the dependency repository to the cache using the native git client.
-func CloneCacheNative(dep domain.Dependency) (*git2.Repository, error) {
+func CloneCacheNative(dep domain.Dependency, decision auth.Decision) (*git2.Repository, error) {
+	if err := requireGit(); err != nil {
+		return nil, err
+	}
 	msg.Info("📥 Downloading dependency %s", dep.Repository)
-	if err := doClone(dep); err != nil {
+	if err := doClone(dep, decision); err != nil {
 		return nil, err
 	}
 	return GetRepository(dep), nil
 }
 
 // UpdateCacheNative updates the dependency repository in the cache using the native git client.
-func UpdateCacheNative(dep domain.Dependency) (*git2.Repository, error) {
+func UpdateCacheNative(dep domain.Dependency, _ auth.Decision) (*git2.Repository, error) {
+	if err := requireGit(); err != nil {
+		return nil, err
+	}
 	if err := getWrapperFetch(dep); err != nil {
 		return nil, err
 	}
 	return GetRepository(dep), nil
 }
 
-func doClone(dep domain.Dependency) error {
-	checkHasGitClient()
-
+func doClone(dep domain.Dependency, decision auth.Decision) error {
 	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
 	dir := "--separate-git-dir=" + filepath.Join(env.GetCacheDir(), dep.HashName())
 
@@ -63,8 +71,7 @@ func doClone(dep domain.Dependency) error {
 		args = append(args, "--depth", "1", "--single-branch")
 	}
 
-	// TODO(Task 12): replace dep.Repository with auth.Resolve(dep).URL for full protocol/credential handling
-	args = append(args, dep.Repository, dirModule)
+	args = append(args, decision.URL, dirModule)
 
 	//nolint:gosec,nolintlint // Git command with controlled and validated repository URL
 	cmd := exec.Command("git", args...) // #nosec G204 -- Controlled git clone command
@@ -87,8 +94,6 @@ func writeDotGitFile(dep domain.Dependency) {
 }
 
 func getWrapperFetch(dep domain.Dependency) error {
-	checkHasGitClient()
-
 	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
 
 	if _, err := os.Stat(dirModule); os.IsNotExist(err) {
