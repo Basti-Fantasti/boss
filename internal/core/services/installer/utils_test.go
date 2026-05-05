@@ -157,3 +157,19 @@ func TestEnsureDependency_HTTPSUrl(t *testing.T) {
 		t.Error("Should add dependency for HTTPS URL")
 	}
 }
+
+func TestEnsureDependency_GitAtURL(t *testing.T) {
+	pkg := domain.NewPackage()
+	installer.EnsureDependency(pkg, []string{"git@gitlab.mydomain.com:group/repo.git"})
+	if _, ok := pkg.Dependencies["git@gitlab.mydomain.com:group/repo"]; !ok {
+		t.Errorf("expected dep key to be canonical SSH form without .git; got %v", pkg.Dependencies)
+	}
+}
+
+func TestEnsureDependency_HTTPSURL(t *testing.T) {
+	pkg := domain.NewPackage()
+	installer.EnsureDependency(pkg, []string{"https://github.com/HashLoad/horse"})
+	if _, ok := pkg.Dependencies["github.com/HashLoad/horse"]; !ok {
+		t.Errorf("expected canonical host/path key; got %v", pkg.Dependencies)
+	}
+}
