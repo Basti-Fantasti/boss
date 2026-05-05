@@ -2,7 +2,7 @@
 package cli
 
 import (
-	"github.com/hashload/boss/internal/upgrade"
+	"github.com/basti-fantasti/bossy/internal/upgrade"
 	"github.com/spf13/cobra"
 )
 

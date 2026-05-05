@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashload/boss/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
 )
 
 func TestProgressTracker(t *testing.T) {
@@ -19,7 +19,7 @@ func TestProgressTracker(t *testing.T) {
 		{Repository: "github.com/hashload/dataset-serialize"},
 		{Repository: "github.com/hashload/jhonson"},
 		{Repository: "github.com/hashload/redis-client"},
-		{Repository: "github.com/hashload/boss-core"},
+		{Repository: "github.com/basti-fantasti/bossy-core"},
 	}
 
 	tracker := NewProgressTracker(deps)

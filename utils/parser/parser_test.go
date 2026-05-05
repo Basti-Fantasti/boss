@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/hashload/boss/utils/parser"
+	"github.com/basti-fantasti/bossy/utils/parser"
 )
 
 func TestJSONMarshal_BasicStruct(t *testing.T) {

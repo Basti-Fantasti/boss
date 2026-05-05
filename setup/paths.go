@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/utils"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/utils"
 	"github.com/mattn/go-isatty"
 	"github.com/pterm/pterm"
 )

@@ -1,4 +1,4 @@
-module github.com/hashload/boss
+module github.com/basti-fantasti/bossy
 
 go 1.24.0
 

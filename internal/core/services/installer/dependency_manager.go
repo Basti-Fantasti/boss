@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 
 	goGit "github.com/go-git/go-git/v5"
-	"github.com/hashload/boss/internal/adapters/secondary/filesystem"
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/core/ports"
-	"github.com/hashload/boss/internal/core/services/cache"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/internal/adapters/secondary/filesystem"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/ports"
+	"github.com/basti-fantasti/bossy/internal/core/services/cache"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // ErrRepositoryNil is returned when the repository is nil after cloning or updating.

@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 	"golang.org/x/sys/windows/registry"
 
-	bossRegistry "github.com/hashload/boss/internal/adapters/secondary/registry"
+	bossRegistry "github.com/basti-fantasti/bossy/internal/adapters/secondary/registry"
 )
 
 const SearchPathRegistry = "Search Path"

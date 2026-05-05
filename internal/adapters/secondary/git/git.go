@@ -9,10 +9,10 @@ import (
 	goGit "github.com/go-git/go-git/v5"
 	gitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // CloneCache clones the dependency repository to the cache.

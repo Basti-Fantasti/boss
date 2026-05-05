@@ -8,8 +8,8 @@ import (
 	"io"
 	"os/exec"
 
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/pkg/pkgmanager"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/pkgmanager"
 )
 
 // RunCmd executes a command with the given arguments.

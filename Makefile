@@ -1,7 +1,7 @@
 BINDIR      := $(CURDIR)/bin
 DIST_DIRS   := find * -type d -exec
 TARGETS     := linux/amd64 linux/386 linux/arm linux/arm64 linux/ppc64le linux/s390x windows/amd64 windows/386
-BINNAME     ?= boss
+BINNAME     ?= bossy
 
 GOPATH        = $(shell go env GOPATH)
 GOX           = $(GOPATH)/bin/gox
@@ -29,7 +29,7 @@ endif
 BINARY_VERSION ?= ${GIT_TAG}
 
 ifneq ($(BINARY_VERSION),)
-	LDFLAGS += -X github.com/hashload/boss/internal/version.version=${BINARY_VERSION}
+	LDFLAGS += -X github.com/basti-fantasti/bossy/internal/version.version=${BINARY_VERSION}
 endif
 
 VERSION_METADATA = unreleased
@@ -37,8 +37,8 @@ ifneq ($(GIT_TAG),)
 	VERSION_METADATA =
 endif
 
-LDFLAGS += -X github.com/hashload/boss/internal/version.metadata=${VERSION_METADATA}
-LDFLAGS += -X github.com/hashload/boss/internal/version.gitCommit=${GIT_COMMIT}
+LDFLAGS += -X github.com/basti-fantasti/bossy/internal/version.metadata=${VERSION_METADATA}
+LDFLAGS += -X github.com/basti-fantasti/bossy/internal/version.gitCommit=${GIT_COMMIT}
 .PHONY: all
 run:
 	@GO111MODULE=on go run  $(word 2, $(MAKECMDGOALS) )

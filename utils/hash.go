@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // hashByte calculates the MD5 hash of a byte slice.

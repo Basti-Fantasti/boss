@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/utils/dcc32"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/utils/dcc32"
 	"github.com/mitchellh/go-homedir"
 )
 

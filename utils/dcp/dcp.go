@@ -10,11 +10,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/utils"
-	"github.com/hashload/boss/utils/librarypath"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/utils"
+	"github.com/basti-fantasti/bossy/utils/librarypath"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
 )

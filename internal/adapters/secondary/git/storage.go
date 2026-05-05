@@ -9,8 +9,8 @@ import (
 	cache2 "github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/storage"
 	"github.com/go-git/go-git/v5/storage/filesystem"
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/env"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 // makeStorageCacheWithoutEnsure creates storage without ensuring cache dir exists.

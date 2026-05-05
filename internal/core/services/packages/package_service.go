@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/core/ports"
-	"github.com/hashload/boss/pkg/env"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/ports"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 // PackageService handles package operations using repositories.

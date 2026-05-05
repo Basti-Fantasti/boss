@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashload/boss/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/consts"
 )
 
 func TestConstants_FileNames(t *testing.T) {

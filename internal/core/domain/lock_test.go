@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/infra"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/infra"
 )
 
 // testFileSystem is a simple test implementation of FileSystem.
@@ -111,7 +111,7 @@ func TestLockedDependency_GetArtifacts(t *testing.T) {
 func TestPackageLock_GetInstalled(t *testing.T) {
 	lock := domain.PackageLock{
 		Installed: map[string]domain.LockedDependency{
-			"github.com/hashload/boss": {
+			"github.com/basti-fantasti/bossy": {
 				Name:    "boss",
 				Version: "1.0.0",
 				Hash:    "abc123",
@@ -125,7 +125,7 @@ func TestPackageLock_GetInstalled(t *testing.T) {
 	}
 
 	t.Run("get existing dependency", func(t *testing.T) {
-		dep := domain.Dependency{Repository: "github.com/hashload/boss"}
+		dep := domain.Dependency{Repository: "github.com/basti-fantasti/bossy"}
 		result := lock.GetInstalled(dep)
 
 		if result.Name != "boss" {
@@ -146,7 +146,7 @@ func TestPackageLock_GetInstalled(t *testing.T) {
 	})
 
 	t.Run("case insensitive lookup", func(t *testing.T) {
-		dep := domain.Dependency{Repository: "GITHUB.COM/HASHLOAD/BOSS"}
+		dep := domain.Dependency{Repository: "GITHUB.COM/BASTI-FANTASTI/BOSSY"}
 		result := lock.GetInstalled(dep)
 
 		if result.Name != "boss" {
@@ -158,7 +158,7 @@ func TestPackageLock_GetInstalled(t *testing.T) {
 func TestPackageLock_CleanRemoved(t *testing.T) {
 	lock := domain.PackageLock{
 		Installed: map[string]domain.LockedDependency{
-			"github.com/hashload/boss": {
+			"github.com/basti-fantasti/bossy": {
 				Name:    "boss",
 				Version: "1.0.0",
 			},
@@ -174,7 +174,7 @@ func TestPackageLock_CleanRemoved(t *testing.T) {
 	}
 
 	currentDeps := []domain.Dependency{
-		{Repository: "github.com/hashload/boss"},
+		{Repository: "github.com/basti-fantasti/bossy"},
 		{Repository: "github.com/hashload/horse"},
 	}
 
@@ -194,7 +194,7 @@ func TestPackageLock_CleanRemoved(t *testing.T) {
 func TestPackageLock_GetArtifactList(t *testing.T) {
 	lock := domain.PackageLock{
 		Installed: map[string]domain.LockedDependency{
-			"github.com/hashload/boss": {
+			"github.com/basti-fantasti/bossy": {
 				Artifacts: domain.DependencyArtifacts{
 					Bin: []string{"boss.exe"},
 					Bpl: []string{"boss.bpl"},
@@ -240,7 +240,7 @@ func TestPackageLock_SetInstalled(t *testing.T) {
 		Installed: map[string]domain.LockedDependency{},
 	}
 
-	dep := domain.Dependency{Repository: "github.com/hashload/boss"}
+	dep := domain.Dependency{Repository: "github.com/basti-fantasti/bossy"}
 	locked := domain.LockedDependency{
 		Name:    "boss",
 		Version: "1.0.0",
@@ -337,7 +337,7 @@ func TestPackageLock_MultipleOperations(t *testing.T) {
 
 	// Add multiple dependencies
 	deps := []domain.Dependency{
-		{Repository: "github.com/hashload/boss"},
+		{Repository: "github.com/basti-fantasti/bossy"},
 		{Repository: "github.com/hashload/horse"},
 		{Repository: "github.com/hashload/dataset"},
 	}

@@ -2,7 +2,7 @@
 package cli
 
 import (
-	"github.com/hashload/boss/internal/core/services/installer"
+	"github.com/basti-fantasti/bossy/internal/core/services/installer"
 	"github.com/spf13/cobra"
 )
 

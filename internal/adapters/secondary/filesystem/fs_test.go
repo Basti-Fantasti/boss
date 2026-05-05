@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	fs "github.com/hashload/boss/internal/adapters/secondary/filesystem"
+	fs "github.com/basti-fantasti/bossy/internal/adapters/secondary/filesystem"
 )
 
 func TestOSFileSystem_ReadWriteFile(t *testing.T) {

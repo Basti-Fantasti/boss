@@ -1,6 +1,6 @@
 package ports
 
-import "github.com/hashload/boss/internal/core/domain"
+import "github.com/basti-fantasti/bossy/internal/core/domain"
 
 // LockRepository defines the contract for lock file persistence.
 // This interface is implemented by adapters in the infrastructure layer.

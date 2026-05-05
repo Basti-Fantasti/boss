@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/core/services/paths"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/services/paths"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 func TestEnsureCacheDir(t *testing.T) {

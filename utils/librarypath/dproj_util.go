@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 var (

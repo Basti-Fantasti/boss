@@ -4,7 +4,7 @@
 // Package registryadapter provides Unix/Linux stub implementations for registry operations.
 package registryadapter
 
-import "github.com/hashload/boss/pkg/msg"
+import "github.com/basti-fantasti/bossy/pkg/msg"
 
 // getDelphiVersionFromRegistry returns the delphi version from the registry.
 func getDelphiVersionFromRegistry() map[string]string {

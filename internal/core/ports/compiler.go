@@ -2,7 +2,7 @@
 // These ports are implemented by adapters in the infrastructure layer.
 package ports
 
-import "github.com/hashload/boss/internal/core/domain"
+import "github.com/basti-fantasti/bossy/internal/core/domain"
 
 // Compiler defines the contract for compiling Delphi projects.
 type Compiler interface {

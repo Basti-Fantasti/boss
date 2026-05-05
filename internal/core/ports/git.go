@@ -8,7 +8,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/hashload/boss/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
 )
 
 // GitRepository defines the contract for git operations.

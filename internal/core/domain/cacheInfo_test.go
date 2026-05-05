@@ -3,7 +3,7 @@ package domain_test
 import (
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
 )
 
 func TestNewRepoInfo(t *testing.T) {

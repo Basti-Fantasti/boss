@@ -3,7 +3,7 @@ package domain_test
 import (
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
 )
 
 func TestDependency_Name(t *testing.T) {
@@ -14,8 +14,8 @@ func TestDependency_Name(t *testing.T) {
 	}{
 		{
 			name:       "github repository",
-			repository: "github.com/hashload/boss",
-			expected:   "boss",
+			repository: "github.com/basti-fantasti/bossy",
+			expected:   "bossy",
 		},
 		{
 			name:       "gitlab repository",
@@ -34,8 +34,8 @@ func TestDependency_Name(t *testing.T) {
 		},
 		{
 			name:       "repository with trailing slash",
-			repository: "github.com/hashload/boss/",
-			expected:   "boss/",
+			repository: "github.com/basti-fantasti/bossy/",
+			expected:   "bossy/",
 		},
 		{
 			name:       "simple name",
@@ -62,7 +62,7 @@ func TestDependency_HashName(t *testing.T) {
 	}{
 		{
 			name:       "github repository",
-			repository: "github.com/hashload/boss",
+			repository: "github.com/basti-fantasti/bossy",
 		},
 		{
 			name:       "empty repository",
@@ -176,23 +176,23 @@ func TestParseDependency(t *testing.T) {
 	}{
 		{
 			name:         "simple version",
-			repo:         "github.com/hashload/boss",
+			repo:         "github.com/basti-fantasti/bossy",
 			info:         "1.0.0",
-			expectedRepo: "github.com/hashload/boss",
+			expectedRepo: "github.com/basti-fantasti/bossy",
 			expectedSSH:  false,
 		},
 		{
 			name:         "version with ssh",
-			repo:         "github.com/hashload/boss",
+			repo:         "github.com/basti-fantasti/bossy",
 			info:         "1.0.0:ssh",
-			expectedRepo: "github.com/hashload/boss",
+			expectedRepo: "github.com/basti-fantasti/bossy",
 			expectedSSH:  true,
 		},
 		{
 			name:         "version without ssh explicit",
-			repo:         "github.com/hashload/boss",
+			repo:         "github.com/basti-fantasti/bossy",
 			info:         "1.0.0:https",
-			expectedRepo: "github.com/hashload/boss",
+			expectedRepo: "github.com/basti-fantasti/bossy",
 			expectedSSH:  false,
 		},
 	}
@@ -225,14 +225,14 @@ func TestGetDependencies(t *testing.T) {
 		{
 			name: "single dependency",
 			deps: map[string]string{
-				"github.com/hashload/boss": "1.0.0",
+				"github.com/basti-fantasti/bossy": "1.0.0",
 			},
 			expected: 1,
 		},
 		{
 			name: "multiple dependencies",
 			deps: map[string]string{
-				"github.com/hashload/boss":  "1.0.0",
+				"github.com/basti-fantasti/bossy":  "1.0.0",
 				"github.com/hashload/horse": "^2.0.0",
 				"github.com/user/repo":      "~1.5.0",
 			},
@@ -252,7 +252,7 @@ func TestGetDependencies(t *testing.T) {
 
 func TestGetDependenciesNames(t *testing.T) {
 	deps := []domain.Dependency{
-		{Repository: "github.com/hashload/boss"},
+		{Repository: "github.com/basti-fantasti/bossy"},
 		{Repository: "github.com/hashload/horse"},
 		{Repository: "github.com/user/repo"},
 	}
@@ -263,7 +263,7 @@ func TestGetDependenciesNames(t *testing.T) {
 		t.Errorf("GetDependenciesNames() returned %d names, want 3", len(names))
 	}
 
-	expectedNames := []string{"boss", "horse", "repo"}
+	expectedNames := []string{"bossy", "horse", "repo"}
 	for i, expected := range expectedNames {
 		if names[i] != expected {
 			t.Errorf("GetDependenciesNames()[%d] = %q, want %q", i, names[i], expected)
@@ -279,7 +279,7 @@ func TestDependency_GetURLPrefix(t *testing.T) {
 	}{
 		{
 			name:       "github.com",
-			repository: "github.com/hashload/boss",
+			repository: "github.com/basti-fantasti/bossy",
 			expected:   "github.com",
 		},
 		{
@@ -323,8 +323,8 @@ func TestDependency_GetURL(t *testing.T) {
 	}{
 		{
 			name:       "adds https to plain repository",
-			repository: "github.com/hashload/boss",
-			wantPrefix: "https://github.com/hashload/boss",
+			repository: "github.com/basti-fantasti/bossy",
+			wantPrefix: "https://github.com/basti-fantasti/bossy",
 		},
 		{
 			name:       "keeps https url as is",
@@ -362,8 +362,8 @@ func TestDependency_SSHUrl(t *testing.T) {
 	}{
 		{
 			name:       "github repository converts to ssh format",
-			repository: "github.com/hashload/boss",
-			expected:   "git@github.com:hashload/boss",
+			repository: "github.com/basti-fantasti/bossy",
+			expected:   "git@github.com:basti-fantasti/bossy",
 		},
 		{
 			name:       "gitlab repository converts to ssh format",
@@ -372,8 +372,8 @@ func TestDependency_SSHUrl(t *testing.T) {
 		},
 		{
 			name:       "already ssh format is returned as-is",
-			repository: "git@github.com:hashload/boss",
-			expected:   "git@github.com:hashload/boss",
+			repository: "git@github.com:basti-fantasti/bossy",
+			expected:   "git@github.com:basti-fantasti/bossy",
 		},
 		{
 			name:       "custom domain converts to ssh format",

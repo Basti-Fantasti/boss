@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/hashload/boss/cmd"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/cmd"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // main is the entry point of the application.

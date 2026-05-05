@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	filesystem "github.com/hashload/boss/internal/adapters/secondary/filesystem"
-	registry "github.com/hashload/boss/internal/adapters/secondary/registry"
-	"github.com/hashload/boss/internal/adapters/secondary/repository"
-	"github.com/hashload/boss/internal/core/services/installer"
-	"github.com/hashload/boss/internal/core/services/packages"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/pkg/pkgmanager"
-	"github.com/hashload/boss/utils/dcc32"
+	filesystem "github.com/basti-fantasti/bossy/internal/adapters/secondary/filesystem"
+	registry "github.com/basti-fantasti/bossy/internal/adapters/secondary/registry"
+	"github.com/basti-fantasti/bossy/internal/adapters/secondary/repository"
+	"github.com/basti-fantasti/bossy/internal/core/services/installer"
+	"github.com/basti-fantasti/bossy/internal/core/services/packages"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/pkgmanager"
+	"github.com/basti-fantasti/bossy/utils/dcc32"
 )
 
 // PATH is the environment variable for the system path.

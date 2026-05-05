@@ -10,12 +10,12 @@ import (
 	"slices"
 	"strings"
 
-	bossRegistry "github.com/hashload/boss/internal/adapters/secondary/registry"
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/utils"
+	bossRegistry "github.com/basti-fantasti/bossy/internal/adapters/secondary/registry"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/utils"
 	"golang.org/x/sys/windows/registry"
 )
 

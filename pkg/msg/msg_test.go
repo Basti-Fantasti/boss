@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 func TestNewMessenger(t *testing.T) {

@@ -3,8 +3,8 @@ package installer_test
 import (
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/core/services/installer"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/services/installer"
 )
 
 func TestParseDependency(t *testing.T) {
@@ -20,8 +20,8 @@ func TestParseDependency(t *testing.T) {
 		},
 		{
 			name:     "owner/repo adds github.com prefix",
-			input:    "hashload/boss",
-			expected: "github.com/hashload/boss",
+			input:    "basti-fantasti/bossy",
+			expected: "github.com/basti-fantasti/bossy",
 		},
 		{
 			name:     "full path unchanged",
@@ -125,9 +125,9 @@ func TestEnsureDependency_OwnerRepo(t *testing.T) {
 		Dependencies: make(map[string]string),
 	}
 
-	installer.EnsureDependency(pkg, []string{"hashload/boss"})
+	installer.EnsureDependency(pkg, []string{"basti-fantasti/bossy"})
 
-	expected := "github.com/hashload/boss"
+	expected := "github.com/basti-fantasti/bossy"
 	if _, ok := pkg.Dependencies[expected]; !ok {
 		t.Errorf("Should add dependency for %q", expected)
 	}

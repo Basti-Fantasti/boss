@@ -4,10 +4,10 @@ package cli
 import (
 	"os"
 
-	"github.com/hashload/boss/internal/core/services/installer"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/pkg/pkgmanager"
+	"github.com/basti-fantasti/bossy/internal/core/services/installer"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/pkgmanager"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

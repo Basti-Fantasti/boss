@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	registryadapter "github.com/hashload/boss/internal/adapters/secondary/registry"
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
+	registryadapter "github.com/basti-fantasti/bossy/internal/adapters/secondary/registry"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 // SelectionContext holds the context for compiler selection.

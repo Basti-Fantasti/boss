@@ -3,7 +3,7 @@ package domain
 import (
 	"strings"
 
-	"github.com/hashload/boss/utils"
+	"github.com/basti-fantasti/bossy/utils"
 )
 
 // DependencyArtifacts holds the compiled artifacts for a dependency.

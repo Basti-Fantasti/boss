@@ -6,8 +6,8 @@ package pkgmanager
 import (
 	"sync"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/core/services/packages"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/services/packages"
 )
 
 var (

@@ -10,15 +10,15 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hashload/boss/pkg/pkgmanager"
+	"github.com/basti-fantasti/bossy/pkg/pkgmanager"
 
 	"slices"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/utils"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/utils"
 )
 
 // UpdateLibraryPath updates the library path for the project or globally.

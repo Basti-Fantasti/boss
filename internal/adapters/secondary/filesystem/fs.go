@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/hashload/boss/internal/infra"
+	"github.com/basti-fantasti/bossy/internal/infra"
 )
 
 // Compile-time check that OSFileSystem implements infra.FileSystem.

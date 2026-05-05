@@ -5,8 +5,8 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

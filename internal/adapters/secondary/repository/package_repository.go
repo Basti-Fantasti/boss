@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/core/ports"
-	"github.com/hashload/boss/internal/infra"
-	"github.com/hashload/boss/utils/parser"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/ports"
+	"github.com/basti-fantasti/bossy/internal/infra"
+	"github.com/basti-fantasti/bossy/utils/parser"
 )
 
 // Compile-time check that FilePackageRepository implements ports.PackageRepository.

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashload/boss/internal/adapters/secondary/filesystem"
-	"github.com/hashload/boss/internal/core/services/cache"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/internal/adapters/secondary/filesystem"
+	"github.com/basti-fantasti/bossy/internal/core/services/cache"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // RunGC runs the garbage collector to remove old cache entries.

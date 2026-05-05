@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashload/boss/internal/adapters/secondary/filesystem"
-	"github.com/hashload/boss/internal/core/services/cache"
+	"github.com/basti-fantasti/bossy/internal/adapters/secondary/filesystem"
+	"github.com/basti-fantasti/bossy/internal/core/services/cache"
 )
 
 // TestRemoveCacheFunc_NilInfo tests that the walk function handles nil info gracefully.

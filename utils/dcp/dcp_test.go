@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
 )
 
 // TestGetDcpString tests DCP string generation.

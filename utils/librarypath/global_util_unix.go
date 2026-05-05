@@ -5,7 +5,7 @@
 package librarypath
 
 import (
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // updateGlobalLibraryPath updates the global library path.

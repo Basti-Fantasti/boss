@@ -16,7 +16,7 @@ import (
 	"io"
 
 	"github.com/denisbrodbeck/machineid"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // Encrypt encrypts a message using AES encryption.

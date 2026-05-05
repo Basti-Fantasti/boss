@@ -7,7 +7,7 @@ package registryadapter
 import (
 	"os"
 
-	"github.com/hashload/boss/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/consts"
 	"golang.org/x/sys/windows/registry"
 )
 

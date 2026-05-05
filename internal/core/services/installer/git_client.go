@@ -6,10 +6,10 @@ import (
 	goGit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	git "github.com/hashload/boss/internal/adapters/secondary/git"
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/core/ports"
-	"github.com/hashload/boss/pkg/env"
+	git "github.com/basti-fantasti/bossy/internal/adapters/secondary/git"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/core/ports"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 var _ ports.GitClientV2 = (*DefaultGitClient)(nil)

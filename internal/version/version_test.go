@@ -3,7 +3,7 @@ package version_test
 import (
 	"testing"
 
-	"github.com/hashload/boss/internal/version"
+	"github.com/basti-fantasti/bossy/internal/version"
 )
 
 func TestGetVersion(t *testing.T) {

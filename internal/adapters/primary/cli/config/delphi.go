@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	registryadapter "github.com/hashload/boss/internal/adapters/secondary/registry"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	registryadapter "github.com/basti-fantasti/bossy/internal/adapters/secondary/registry"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

@@ -3,10 +3,10 @@ package compiler
 import (
 	"path/filepath"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/consts"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/pkgmanager"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/consts"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/pkgmanager"
 )
 
 // DefaultGraphBuilder implements GraphBuilder using the real graph functions.

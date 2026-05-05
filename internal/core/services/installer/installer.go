@@ -5,12 +5,12 @@ package installer
 import (
 	"os"
 
-	"github.com/hashload/boss/internal/adapters/secondary/filesystem"
-	"github.com/hashload/boss/internal/adapters/secondary/repository"
-	lockService "github.com/hashload/boss/internal/core/services/lock"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/pkg/pkgmanager"
+	"github.com/basti-fantasti/bossy/internal/adapters/secondary/filesystem"
+	"github.com/basti-fantasti/bossy/internal/adapters/secondary/repository"
+	lockService "github.com/basti-fantasti/bossy/internal/core/services/lock"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/pkgmanager"
 )
 
 // InstallOptions holds the options for the installation process.

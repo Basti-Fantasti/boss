@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/env"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 // TestDependencyManager_HasCache_NotExists tests hasCache when directory doesn't exist.

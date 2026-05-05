@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // npmRangePattern detects npm-style hyphen ranges (1.0.0 - 2.0.0).

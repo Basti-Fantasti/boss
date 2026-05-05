@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashload/boss/utils"
+	"github.com/basti-fantasti/bossy/utils"
 )
 
 func TestHashDir_EmptyDirectory(t *testing.T) {

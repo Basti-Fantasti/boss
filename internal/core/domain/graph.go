@@ -6,7 +6,7 @@ import (
 
 	"slices"
 
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // Node represents a node in the dependency graph.

@@ -3,7 +3,7 @@ package crypto_test
 import (
 	"testing"
 
-	"github.com/hashload/boss/utils/crypto"
+	"github.com/basti-fantasti/bossy/utils/crypto"
 )
 
 func TestCryptoa(t *testing.T) {

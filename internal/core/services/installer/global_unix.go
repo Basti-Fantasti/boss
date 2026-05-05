@@ -3,9 +3,9 @@
 package installer
 
 import (
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // GlobalInstall installs dependencies globally (Unix implementation).

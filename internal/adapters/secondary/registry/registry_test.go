@@ -3,7 +3,7 @@ package registryadapter_test
 import (
 	"testing"
 
-	registry "github.com/hashload/boss/internal/adapters/secondary/registry"
+	registry "github.com/basti-fantasti/bossy/internal/adapters/secondary/registry"
 )
 
 // TestGetDelphiPaths tests retrieval of Delphi paths.

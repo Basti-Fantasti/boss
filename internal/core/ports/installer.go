@@ -1,7 +1,7 @@
 // Package ports defines port interfaces for dependency management.
 package ports
 
-import "github.com/hashload/boss/internal/core/domain"
+import "github.com/basti-fantasti/bossy/internal/core/domain"
 
 // DependencyInstaller defines the contract for installing dependencies.
 type DependencyInstaller interface {

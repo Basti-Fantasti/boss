@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashload/boss/internal/core/domain"
-	"github.com/hashload/boss/internal/infra"
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/internal/infra"
 )
 
 func TestPackage_AddDependency(t *testing.T) {
@@ -21,10 +21,10 @@ func TestPackage_AddDependency(t *testing.T) {
 		{
 			name:        "add new dependency to empty map",
 			initialDeps: map[string]string{},
-			addDep:      "github.com/hashload/boss",
+			addDep:      "github.com/basti-fantasti/bossy",
 			addVer:      "1.0.0",
 			expectedDeps: map[string]string{
-				"github.com/hashload/boss": "1.0.0",
+				"github.com/basti-fantasti/bossy": "1.0.0",
 			},
 		},
 		{
@@ -32,33 +32,33 @@ func TestPackage_AddDependency(t *testing.T) {
 			initialDeps: map[string]string{
 				"github.com/existing/repo": "1.0.0",
 			},
-			addDep: "github.com/hashload/boss",
+			addDep: "github.com/basti-fantasti/bossy",
 			addVer: "2.0.0",
 			expectedDeps: map[string]string{
 				"github.com/existing/repo": "1.0.0",
-				"github.com/hashload/boss": "2.0.0",
+				"github.com/basti-fantasti/bossy": "2.0.0",
 			},
 		},
 		{
 			name: "update existing dependency - exact match",
 			initialDeps: map[string]string{
-				"github.com/hashload/boss": "1.0.0",
+				"github.com/basti-fantasti/bossy": "1.0.0",
 			},
-			addDep: "github.com/hashload/boss",
+			addDep: "github.com/basti-fantasti/bossy",
 			addVer: "2.0.0",
 			expectedDeps: map[string]string{
-				"github.com/hashload/boss": "2.0.0",
+				"github.com/basti-fantasti/bossy": "2.0.0",
 			},
 		},
 		{
 			name: "update existing dependency - case insensitive",
 			initialDeps: map[string]string{
-				"github.com/HashLoad/Boss": "1.0.0",
+				"github.com/Basti-Fantasti/Bossy": "1.0.0",
 			},
-			addDep: "github.com/hashload/boss",
+			addDep: "github.com/basti-fantasti/bossy",
 			addVer: "2.0.0",
 			expectedDeps: map[string]string{
-				"github.com/HashLoad/Boss": "2.0.0",
+				"github.com/Basti-Fantasti/Bossy": "2.0.0",
 			},
 		},
 	}
@@ -149,16 +149,16 @@ func TestPackage_UninstallDependency(t *testing.T) {
 		{
 			name: "uninstall existing dependency",
 			initialDeps: map[string]string{
-				"github.com/hashload/boss":  "1.0.0",
+				"github.com/basti-fantasti/bossy":  "1.0.0",
 				"github.com/hashload/horse": "2.0.0",
 			},
-			uninstallDep:  "github.com/hashload/boss",
+			uninstallDep:  "github.com/basti-fantasti/bossy",
 			expectedCount: 1,
 		},
 		{
 			name: "uninstall non-existing dependency",
 			initialDeps: map[string]string{
-				"github.com/hashload/boss": "1.0.0",
+				"github.com/basti-fantasti/bossy": "1.0.0",
 			},
 			uninstallDep:  "github.com/hashload/notexists",
 			expectedCount: 1,
@@ -166,21 +166,21 @@ func TestPackage_UninstallDependency(t *testing.T) {
 		{
 			name: "uninstall case insensitive",
 			initialDeps: map[string]string{
-				"github.com/HashLoad/Boss": "1.0.0",
+				"github.com/Basti-Fantasti/Bossy": "1.0.0",
 			},
-			uninstallDep:  "github.com/hashload/boss",
+			uninstallDep:  "github.com/basti-fantasti/bossy",
 			expectedCount: 0,
 		},
 		{
 			name:          "uninstall from empty map",
 			initialDeps:   map[string]string{},
-			uninstallDep:  "github.com/hashload/boss",
+			uninstallDep:  "github.com/basti-fantasti/bossy",
 			expectedCount: 0,
 		},
 		{
 			name:          "uninstall from nil map",
 			initialDeps:   nil,
-			uninstallDep:  "github.com/hashload/boss",
+			uninstallDep:  "github.com/basti-fantasti/bossy",
 			expectedCount: 0,
 		},
 	}
@@ -234,7 +234,7 @@ func TestPackage_GetParsedDependencies(t *testing.T) {
 			name: "with dependencies",
 			pkg: &domain.Package{
 				Dependencies: map[string]string{
-					"github.com/hashload/boss":  "1.0.0",
+					"github.com/basti-fantasti/bossy":  "1.0.0",
 					"github.com/hashload/horse": "^2.0.0",
 				},
 			},

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashload/boss/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 // DelphiInstallation represents a Delphi installation found in the registry.

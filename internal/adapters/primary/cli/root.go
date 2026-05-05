@@ -5,11 +5,11 @@ package cli
 import (
 	"os"
 
-	"github.com/hashload/boss/internal/adapters/primary/cli/config"
-	"github.com/hashload/boss/internal/core/services/gc"
-	"github.com/hashload/boss/pkg/env"
-	"github.com/hashload/boss/pkg/msg"
-	"github.com/hashload/boss/setup"
+	"github.com/basti-fantasti/bossy/internal/adapters/primary/cli/config"
+	"github.com/basti-fantasti/bossy/internal/core/services/gc"
+	"github.com/basti-fantasti/bossy/pkg/env"
+	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/basti-fantasti/bossy/setup"
 
 	"github.com/spf13/cobra"
 )

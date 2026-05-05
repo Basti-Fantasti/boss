@@ -1,7 +1,7 @@
 package compiler
 
 import (
-	"github.com/hashload/boss/internal/core/services/tracker"
+	"github.com/basti-fantasti/bossy/internal/core/services/tracker"
 	"github.com/pterm/pterm"
 )
 
