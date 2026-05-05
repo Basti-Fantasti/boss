@@ -25,11 +25,33 @@ type Dependency struct {
 	version    string
 }
 
-// HashName returns the MD5 hash of the repository name.
+// canonicalRepo returns the canonical "host/path" form of a repository
+// reference, used for cache hashing so equivalent declarations
+// (git@host:path[.git], host/path, https://host/path[.git]) collapse
+// to one cache entry. Falls back to the input on malformed strings.
+func canonicalRepo(repo string) string {
+	s := strings.TrimSpace(repo)
+	s = strings.TrimSuffix(s, ".git")
+	if rest, ok := strings.CutPrefix(s, "git@"); ok {
+		// git@host:path → host/path
+		if idx := strings.Index(rest, ":"); idx > 0 {
+			return rest[:idx] + "/" + rest[idx+1:]
+		}
+	}
+	if rest, ok := strings.CutPrefix(s, "https://"); ok {
+		return rest
+	}
+	if rest, ok := strings.CutPrefix(s, "http://"); ok {
+		return rest
+	}
+	return s
+}
+
+// HashName returns the MD5 hash of the canonical repository name.
 func (p *Dependency) HashName() string {
 	//nolint:gosec // We are not using this for security purposes
 	hash := md5.New()
-	if _, err := io.WriteString(hash, strings.ToLower(p.Repository)); err != nil {
+	if _, err := io.WriteString(hash, strings.ToLower(canonicalRepo(p.Repository))); err != nil {
 		msg.Warn("⚠️ Failed on write dependency hash")
 	}
 	return hex.EncodeToString(hash.Sum(nil))

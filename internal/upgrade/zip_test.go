@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/basti-fantasti/bossy/pkg/consts"
 )
 
 // TestGetAssetFromFile_InvalidFile tests error handling for invalid file.
@@ -41,7 +43,7 @@ func TestReadFileFromZip_ValidZip(t *testing.T) {
 
 	// Create a valid zip file with expected structure
 	expectedContent := []byte("test content")
-	assetPath := fmt.Sprintf("%s-%s/boss", runtime.GOOS, runtime.GOARCH)
+	assetPath := fmt.Sprintf("%s-%s/%s", runtime.GOOS, runtime.GOARCH, consts.BinaryName)
 
 	zipFile, err := os.Create(zipPath)
 	if err != nil {

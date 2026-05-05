@@ -253,6 +253,29 @@ func TestGetDependenciesNames(t *testing.T) {
 	}
 }
 
+func TestHashName_CanonicalForms(t *testing.T) {
+	forms := []string{
+		"gitlab.mydomain.com/group/repo",
+		"git@gitlab.mydomain.com:group/repo",
+		"git@gitlab.mydomain.com:group/repo.git",
+		"https://gitlab.mydomain.com/group/repo",
+		"https://gitlab.mydomain.com/group/repo.git",
+		"GITLAB.MYDOMAIN.COM/group/repo", // case-insensitivity
+	}
+	var first string
+	for i, f := range forms {
+		d := domain.Dependency{Repository: f}
+		h := d.HashName()
+		if i == 0 {
+			first = h
+			continue
+		}
+		if h != first {
+			t.Errorf("form %q has hash %s, want %s (must equal first form)", f, h, first)
+		}
+	}
+}
+
 func TestDependency_GetURLPrefix(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -12,6 +12,8 @@ import (
 	"path"
 	"runtime"
 	"strings"
+
+	"github.com/basti-fantasti/bossy/pkg/consts"
 )
 
 // getAssetFromFile returns the asset from the file.
@@ -35,7 +37,7 @@ func readFileFromZip(file *os.File, assetName string, stat os.FileInfo) ([]byte,
 		return nil, fmt.Errorf("failed to create zip reader: %w", err)
 	}
 
-	filePreffix := path.Join(fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH), "boss")
+	filePreffix := path.Join(fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH), consts.BinaryName)
 
 	for _, file := range reader.File {
 		if strings.HasPrefix(file.Name, filePreffix) {
@@ -62,7 +64,7 @@ func readFileFromTargz(file *os.File, assetName string) ([]byte, error) {
 
 	tarReader := tar.NewReader(gzipReader)
 
-	filePreffix := path.Join(fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH), "boss")
+	filePreffix := path.Join(fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH), consts.BinaryName)
 
 	for {
 		header, err := tarReader.Next()

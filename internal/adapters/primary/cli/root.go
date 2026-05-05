@@ -9,6 +9,7 @@ import (
 	"github.com/basti-fantasti/bossy/internal/adapters/primary/cli/config"
 	"github.com/basti-fantasti/bossy/internal/core/services/gc"
 	"github.com/basti-fantasti/bossy/internal/migrate"
+	"github.com/basti-fantasti/bossy/pkg/consts"
 	"github.com/basti-fantasti/bossy/pkg/env"
 	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/basti-fantasti/bossy/setup"
@@ -44,7 +45,7 @@ func Execute() error {
 	var debug bool
 
 	var root = &cobra.Command{
-		Use:   "boss",
+		Use:   consts.BinaryName,
 		Short: "Dependency Manager for Delphi",
 		Long:  "Dependency Manager for Delphi",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
