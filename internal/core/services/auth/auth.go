@@ -3,7 +3,10 @@
 // docs/superpowers/specs/2026-05-05-bossy-fork-design.md §2.
 package auth
 
-import "github.com/basti-fantasti/bossy/internal/core/domain"
+import (
+	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/env"
+)
 
 // Transport identifies which underlying git client bossy will use.
 type Transport int
@@ -46,9 +49,71 @@ type Decision struct {
 	Layer string
 }
 
-// Resolve walks the precedence chain and returns the Decision for the
-// given dependency. Implementation is filled in by later tasks; this
-// stub exists so call sites can be wired now.
+const defaultBareOrg = "github.com/hashload/"
+
+// Resolve uses the live env.Configuration as the credential/host-config source.
+// Most callers should use this. Tests use ResolveWith to inject doubles.
 func Resolve(dep domain.Dependency) (Decision, error) {
-	return Decision{}, nil
+	cfg := env.GlobalConfiguration()
+	return ResolveWith(dep, cfg, cfg.HostProtocols)
+}
+
+// ResolveWith is the testable form of Resolve. It walks the precedence
+// chain documented in the design spec §2.
+func ResolveWith(dep domain.Dependency, store CredentialStore, hostCfg map[string]string) (Decision, error) {
+	repo := dep.Repository
+	parsed, err := ParseDepURL(repo)
+	if err != nil {
+		return Decision{}, err
+	}
+
+	// Bare names resolve against the default org and become host/path.
+	if parsed.Kind == URLKindBare {
+		parsed, err = ParseDepURL(defaultBareOrg + parsed.Path)
+		if err != nil {
+			return Decision{}, err
+		}
+	}
+
+	// Layer 1: GitLab CI auto-detection.
+	if d, ok := tryGitLabCI(parsed); ok {
+		return d, nil
+	}
+	// Layer 2: env-var override.
+	if d, ok := tryEnvVar(parsed); ok {
+		return d, nil
+	}
+	// Layer 3: per-dep explicit URL.
+	if parsed.Kind == URLKindSSH {
+		return Decision{
+			URL:       "git@" + parsed.Host + ":" + parsed.Path,
+			Transport: TransportSSH,
+			Layer:     "explicit",
+		}, nil
+	}
+	if parsed.Kind == URLKindHTTPS {
+		// Explicit HTTPS may still want stored creds applied.
+		if d, ok := tryStored(parsed, store); ok {
+			return d, nil
+		}
+		return Decision{
+			URL:       "https://" + parsed.Host + "/" + parsed.Path,
+			Transport: TransportHTTPS,
+			Layer:     "explicit",
+		}, nil
+	}
+	// Layer 4: per-host config.
+	if d, ok := tryHostConfig(parsed, hostCfg); ok {
+		return d, nil
+	}
+	// Layer 5: stored creds.
+	if d, ok := tryStored(parsed, store); ok {
+		return d, nil
+	}
+	// Layer 6: default HTTPS, no auth.
+	return Decision{
+		URL:       "https://" + parsed.Host + "/" + parsed.Path,
+		Transport: TransportHTTPS,
+		Layer:     "default",
+	}, nil
 }
