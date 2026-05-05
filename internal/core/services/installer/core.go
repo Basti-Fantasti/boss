@@ -448,7 +448,7 @@ func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
 		return false
 	}
 
-	installed, exists := ic.rootLocked.Installed[strings.ToLower(dep.GetURL())]
+	installed, exists := ic.rootLocked.Installed[dep.GetKey()]
 	if !exists {
 		return false
 	}

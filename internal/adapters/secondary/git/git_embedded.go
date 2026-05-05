@@ -25,7 +25,8 @@ func CloneCacheEmbedded(config env.ConfigProvider, dep domain.Dependency) (*git.
 	msg.Info("📥 Downloading dependency %s", dep.Repository)
 	storageCache := makeStorageCache(config, dep)
 	worktreeFileSystem := createWorktreeFs(config, dep)
-	url := dep.GetURL()
+	// TODO(Task 12): replace dep.Repository with auth.Resolve(dep).URL for full protocol/credential handling
+	url := dep.Repository
 
 	cloneOpts := &git.CloneOptions{
 		URL:  url,

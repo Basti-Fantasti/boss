@@ -63,7 +63,8 @@ func doClone(dep domain.Dependency) error {
 		args = append(args, "--depth", "1", "--single-branch")
 	}
 
-	args = append(args, dep.GetURL(), dirModule)
+	// TODO(Task 12): replace dep.Repository with auth.Resolve(dep).URL for full protocol/credential handling
+	args = append(args, dep.Repository, dirModule)
 
 	//nolint:gosec,nolintlint // Git command with controlled and validated repository URL
 	cmd := exec.Command("git", args...) // #nosec G204 -- Controlled git clone command

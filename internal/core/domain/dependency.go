@@ -13,9 +13,7 @@ import (
 )
 
 var (
-	reSSHUrl            = regexp.MustCompile(`(?m)([\w\d.]*)(?:/)(.*)`)
 	reURLPrefix         = regexp.MustCompile(`^[^/^:]+`)
-	reHasHTTPS          = regexp.MustCompile(`(?m)^https?:\/\/`)
 	reVersionMajorMinor = regexp.MustCompile(`(?m)^(.|)(\d+)\.(\d+)$`)
 	reVersionMajor      = regexp.MustCompile(`(?m)^(.|)(\d+)$`)
 	reDepName           = regexp.MustCompile(`[^/]+(:?/$|$)`)
@@ -25,7 +23,6 @@ var (
 type Dependency struct {
 	Repository string
 	version    string
-	UseSSH     bool
 }
 
 // HashName returns the MD5 hash of the repository name.
@@ -43,34 +40,9 @@ func (p *Dependency) GetVersion() string {
 	return p.version
 }
 
-// SSHUrl returns the SSH URL format for the repository.
-func (p *Dependency) SSHUrl() string {
-	if strings.Contains(p.Repository, "@") {
-		return p.Repository
-	}
-	submatch := reSSHUrl.FindStringSubmatch(p.Repository)
-	provider := submatch[1]
-	repo := submatch[2]
-	return "git@" + provider + ":" + repo
-}
-
 // GetURLPrefix returns the provider prefix of the repository URL.
 func (p *Dependency) GetURLPrefix() string {
 	return reURLPrefix.FindString(p.Repository)
-}
-
-// GetURL returns the full URL for the repository, handling SSH and HTTPS.
-// SSH selection is now determined by the dep's own UseSSH flag only;
-// stored credentials are HTTPS-only (auth.CredentialStore).
-func (p *Dependency) GetURL() string {
-	if p.UseSSH {
-		return p.SSHUrl()
-	}
-	if reHasHTTPS.MatchString(p.Repository) {
-		return p.Repository
-	}
-
-	return "https://" + p.Repository
 }
 
 // ParseDependency creates a Dependency object from repository string and version info.
@@ -88,11 +60,6 @@ func ParseDependency(repo string, info string) Dependency {
 		msg.Debug("Current version for %s is not semantic (x.y.z), for comparison using %s -> %s",
 			dependency.Repository, dependency.version, dependency.version+".0.0")
 		dependency.version += ".0.0"
-	}
-	if len(parsed) > 1 {
-		// TODO(Task 11): the entire `:ssh` suffix block is removed when the
-		// per-dep override moves to first-class URL forms via the auth package.
-		dependency.UseSSH = parsed[1] == "ssh"
 	}
 	return dependency
 }

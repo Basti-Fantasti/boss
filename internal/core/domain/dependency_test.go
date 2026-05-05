@@ -148,11 +148,6 @@ func TestDependency_GetVersion(t *testing.T) {
 			info:     "main",
 			expected: "main",
 		},
-		{
-			name:     "version with ssh suffix",
-			info:     "1.0.0:ssh",
-			expected: "1.0.0",
-		},
 	}
 
 	for _, tt := range tests {
@@ -172,28 +167,18 @@ func TestParseDependency(t *testing.T) {
 		repo         string
 		info         string
 		expectedRepo string
-		expectedSSH  bool
 	}{
 		{
 			name:         "simple version",
 			repo:         "github.com/basti-fantasti/bossy",
 			info:         "1.0.0",
 			expectedRepo: "github.com/basti-fantasti/bossy",
-			expectedSSH:  false,
 		},
 		{
-			name:         "version with ssh",
+			name:         "version with colon suffix is ignored",
 			repo:         "github.com/basti-fantasti/bossy",
 			info:         "1.0.0:ssh",
 			expectedRepo: "github.com/basti-fantasti/bossy",
-			expectedSSH:  true,
-		},
-		{
-			name:         "version without ssh explicit",
-			repo:         "github.com/basti-fantasti/bossy",
-			info:         "1.0.0:https",
-			expectedRepo: "github.com/basti-fantasti/bossy",
-			expectedSSH:  false,
 		},
 	}
 
@@ -203,9 +188,6 @@ func TestParseDependency(t *testing.T) {
 
 			if dep.Repository != tt.expectedRepo {
 				t.Errorf("Repository = %q, want %q", dep.Repository, tt.expectedRepo)
-			}
-			if dep.UseSSH != tt.expectedSSH {
-				t.Errorf("UseSSH = %v, want %v", dep.UseSSH, tt.expectedSSH)
 			}
 		})
 	}
@@ -315,80 +297,3 @@ func TestDependency_GetURLPrefix(t *testing.T) {
 	}
 }
 
-func TestDependency_GetURL(t *testing.T) {
-	tests := []struct {
-		name       string
-		repository string
-		wantPrefix string
-	}{
-		{
-			name:       "adds https to plain repository",
-			repository: "github.com/basti-fantasti/bossy",
-			wantPrefix: "https://github.com/basti-fantasti/bossy",
-		},
-		{
-			name:       "keeps https url as is",
-			repository: "https://github.com/user/repo",
-			wantPrefix: "https://github.com/user/repo",
-		},
-		{
-			name:       "keeps http url as is",
-			repository: "http://git.local/repo",
-			wantPrefix: "http://git.local/repo",
-		},
-		{
-			name:       "gitlab repository",
-			repository: "gitlab.com/user/project",
-			wantPrefix: "https://gitlab.com/user/project",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dep := domain.Dependency{Repository: tt.repository}
-			result := dep.GetURL()
-			if result != tt.wantPrefix {
-				t.Errorf("GetURL() = %q, want %q", result, tt.wantPrefix)
-			}
-		})
-	}
-}
-
-func TestDependency_SSHUrl(t *testing.T) {
-	tests := []struct {
-		name       string
-		repository string
-		expected   string
-	}{
-		{
-			name:       "github repository converts to ssh format",
-			repository: "github.com/basti-fantasti/bossy",
-			expected:   "git@github.com:basti-fantasti/bossy",
-		},
-		{
-			name:       "gitlab repository converts to ssh format",
-			repository: "gitlab.com/user/project",
-			expected:   "git@gitlab.com:user/project",
-		},
-		{
-			name:       "already ssh format is returned as-is",
-			repository: "git@github.com:basti-fantasti/bossy",
-			expected:   "git@github.com:basti-fantasti/bossy",
-		},
-		{
-			name:       "custom domain converts to ssh format",
-			repository: "git.company.com/team/repo",
-			expected:   "git@git.company.com:team/repo",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dep := domain.Dependency{Repository: tt.repository}
-			result := dep.SSHUrl()
-			if result != tt.expected {
-				t.Errorf("SSHUrl() = %q, want %q", result, tt.expected)
-			}
-		})
-	}
-}

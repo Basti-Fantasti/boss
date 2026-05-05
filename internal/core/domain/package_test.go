@@ -3,7 +3,6 @@ package domain_test
 import (
 	"io"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
@@ -360,33 +359,3 @@ func (m *MockFileSystem) IsDir(_ string) bool {
 	return false
 }
 
-func TestDependency_GetURL_SSH(t *testing.T) {
-	dep := domain.ParseDependency("github.com/hashload/horse", "^1.0.0")
-
-	// Force SSH URL
-	dep.UseSSH = true
-
-	url := dep.GetURL()
-
-	if url == "" {
-		t.Error("GetURL() should return non-empty URL")
-	}
-}
-
-func TestDependency_GetURL_HTTPS(t *testing.T) {
-	dep := domain.ParseDependency("github.com/hashload/horse", "^1.0.0")
-
-	// Force HTTPS URL
-	dep.UseSSH = false
-
-	url := dep.GetURL()
-
-	if url == "" {
-		t.Error("GetURL() should return non-empty URL")
-	}
-
-	// Should contain https
-	if !strings.Contains(url, "https://") {
-		t.Errorf("GetURL() = %q, should contain https://", url)
-	}
-}
