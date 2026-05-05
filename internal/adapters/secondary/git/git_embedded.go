@@ -3,8 +3,10 @@
 package gitadapter
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/core/services/auth"
@@ -51,6 +53,9 @@ func CloneCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Rep
 	repository, err := git.Clone(storageCache, worktreeFileSystem, cloneOpts)
 	if err != nil {
 		_ = os.RemoveAll(filepath.Join(env.GetCacheDir(), dep.HashName()))
+		if isCIPermissionError(err) {
+			return nil, ciJobTokenError(dep.Repository, err)
+		}
 		return nil, err
 	}
 	if err := initSubmodules(dep, decision, repository); err != nil {
@@ -137,4 +142,24 @@ func PullEmbedded(dep domain.Dependency, decision auth.Decision) error {
 		Force: true,
 		Auth:  httpsAuth(decision),
 	})
+}
+
+// isCIPermissionError reports whether err looks like a GitLab CI_JOB_TOKEN
+// permission denial. Only meaningful when running inside a GitLab Runner.
+func isCIPermissionError(err error) bool {
+	if err == nil || os.Getenv("GITLAB_CI") != "true" {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "403") || strings.Contains(s, "Forbidden")
+}
+
+// ciJobTokenError wraps a CI permission error with the canonical fix
+// pointer. The underlying error is preserved with %w for callers that
+// want to inspect it.
+func ciJobTokenError(repo string, cause error) error {
+	return fmt.Errorf("CI_JOB_TOKEN denied access to %s.\n"+
+		"Add the calling project to the dependency project's CI/CD job-token allowlist:\n"+
+		"  Settings → CI/CD → Job token permissions\n"+
+		"See docs/ci.md for details. Underlying error: %w", repo, cause)
 }
