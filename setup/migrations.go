@@ -33,11 +33,8 @@ func two() {
 	}
 }
 
-// three sets the git embedded to true.
-func three() {
-	env.GlobalConfiguration().GitEmbedded = true
-	env.GlobalConfiguration().SaveConfiguration()
-}
+// three was: set git embedded to true. GitEmbedded is removed; migration is now a no-op.
+func three() {}
 
 // six removes the internal global directory.
 func six() {

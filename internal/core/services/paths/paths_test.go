@@ -28,15 +28,12 @@ func TestEnsureCacheDir(t *testing.T) {
 	dep := domain.ParseDependency("github.com/hashload/horse", "^1.0.0")
 
 	// Ensure cache dir (should not panic)
-	paths.EnsureCacheDir(env.GlobalConfiguration(), dep)
+	paths.EnsureCacheDir(dep)
 
-	// Verify the cache dir was created if GitEmbedded is true
-	config := env.GlobalConfiguration()
-	if config.GitEmbedded {
-		cacheDir := filepath.Join(bossHome, "cache", dep.HashName())
-		if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
-			t.Error("EnsureCacheDir() should create cache directory when GitEmbedded is true")
-		}
+	// Verify the cache dir was always created
+	cacheDir := filepath.Join(bossHome, "cache", dep.HashName())
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		t.Error("EnsureCacheDir() should always create the cache directory")
 	}
 }
 

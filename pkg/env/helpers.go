@@ -16,8 +16,3 @@ func NewConfigAccessor(provider ConfigProvider) *ConfigAccessor {
 func (a *ConfigAccessor) GetDelphiPath() string {
 	return a.provider.GetDelphiPath()
 }
-
-// GetGitEmbedded returns whether embedded git is enabled.
-func (a *ConfigAccessor) GetGitEmbedded() bool {
-	return a.provider.GetGitEmbedded()
-}

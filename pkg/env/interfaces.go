@@ -8,7 +8,6 @@ import (
 // This allows dependency injection and easier testing.
 type ConfigProvider interface {
 	GetDelphiPath() string
-	GetGitEmbedded() bool
 	GetPurgeTime() int
 	GetInternalRefreshRate() int
 	GetLastPurge() time.Time
@@ -26,11 +25,6 @@ var _ ConfigProvider = (*Configuration)(nil)
 // GetDelphiPath returns the Delphi path.
 func (c *Configuration) GetDelphiPath() string {
 	return c.DelphiPath
-}
-
-// GetGitEmbedded returns whether to use embedded git.
-func (c *Configuration) GetGitEmbedded() bool {
-	return c.GitEmbedded
 }
 
 // GetPurgeTime returns the purge time in days.

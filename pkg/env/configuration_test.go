@@ -42,7 +42,6 @@ func TestLoadConfiguration_ExistingConfig(t *testing.T) {
 		"id":                    "test-key",
 		"purge_after":           7,
 		"internal_refresh_rate": 10,
-		"git_embedded":          false,
 		"auth":                  map[string]any{},
 	}
 	data, _ := json.Marshal(configData)
@@ -68,10 +67,6 @@ func TestLoadConfiguration_ExistingConfig(t *testing.T) {
 
 	if config.InternalRefreshRate != 10 {
 		t.Errorf("InternalRefreshRate = %d, want 10", config.InternalRefreshRate)
-	}
-
-	if config.GitEmbedded != false {
-		t.Error("GitEmbedded should be false")
 	}
 }
 

@@ -2,59 +2,52 @@
 package config
 
 import (
-	"strings"
+	"strconv"
 
 	"github.com/basti-fantasti/bossy/pkg/env"
 	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/spf13/cobra"
 )
 
-// boolToMode converts boolean to mode string.
-func boolToMode(embedded bool) string {
-	if embedded {
-		return "embedded"
-	}
-
-	return "native"
-}
-
 // registryGitCmd registers the git command.
 func registryGitCmd(root *cobra.Command) {
 	gitCmd := &cobra.Command{
-		Use:     "git",
-		Short:   "Configure Git",
-		Example: "boss config git mode",
+		Use:   "git",
+		Short: "Configure git-related behavior",
 	}
 
-	gitModeCmd := &cobra.Command{
-		Use:       "mode [type]",
-		Short:     "Configure Git mode",
-		ValidArgs: []string{"native", "embedded", "default"},
-		Args: func(cmd *cobra.Command, args []string) error {
-			err := cobra.OnlyValidArgs(cmd, args)
-			if err == nil {
-				err = cobra.ExactArgs(1)(cmd, args)
-			}
-			if err != nil {
-				msg.Warn(err.Error())
-				msg.Info("Current: %s\n\nValid args:\n\t%s\n",
-					boolToMode(env.GlobalConfiguration().GitEmbedded),
-					strings.Join(cmd.ValidArgs, "\n\t"))
-				return err
-			}
-			return nil
-		},
+	root.AddCommand(gitCmd)
+	gitCmd.AddCommand(protocolCmd())
+	gitCmd.AddCommand(shallowCmd())
+}
+
+func protocolCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "protocol <host> <ssh|https>",
+		Short: "Set the default protocol for a host",
+		Long: `Pin the default protocol bossy should use when cloning from <host>.
+Overridden in CI by GITLAB_CI auto-detection and by BOSSY_AUTH_<HOST>.`,
+		Args: cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
-			env.GlobalConfiguration().GitEmbedded = args[0] != "native"
-
-			msg.Info("Using %s git", boolToMode(env.GlobalConfiguration().GitEmbedded))
-			env.GlobalConfiguration().SaveConfiguration()
+			host, proto := args[0], args[1]
+			if proto != "ssh" && proto != "https" {
+				msg.Die("protocol must be 'ssh' or 'https'")
+			}
+			cfg := env.GlobalConfiguration()
+			if cfg.HostProtocols == nil {
+				cfg.HostProtocols = map[string]string{}
+			}
+			cfg.HostProtocols[host] = proto
+			cfg.SaveConfiguration()
+			msg.Success("✅ %s → %s", host, proto)
 		},
 	}
+}
 
-	gitShallowCmd := &cobra.Command{
-		Use:       "shallow [true|false]",
-		Short:     "Configure Git shallow clone",
+func shallowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:       "shallow <true|false>",
+		Short:     "Enable or disable shallow clones",
 		Long:      "Enable or disable shallow clone (faster downloads, no history)",
 		ValidArgs: []string{"true", "false"},
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -66,24 +59,24 @@ func registryGitCmd(root *cobra.Command) {
 				msg.Warn(err.Error())
 				msg.Info("Current: %v\n\nValid args:\n\t%s\n",
 					env.GlobalConfiguration().GitShallow,
-					strings.Join(cmd.ValidArgs, "\n\t"))
+					"true\n\tfalse")
 				return err
 			}
 			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
-			env.GlobalConfiguration().GitShallow = args[0] == "true"
-
-			if env.GlobalConfiguration().GitShallow {
+			v, err := strconv.ParseBool(args[0])
+			if err != nil {
+				msg.Die("expected true or false")
+			}
+			cfg := env.GlobalConfiguration()
+			cfg.GitShallow = v
+			cfg.SaveConfiguration()
+			if cfg.GitShallow {
 				msg.Info("Shallow clone enabled (faster, no git history)")
 			} else {
 				msg.Info("Shallow clone disabled (full git history)")
 			}
-			env.GlobalConfiguration().SaveConfiguration()
 		},
 	}
-
-	root.AddCommand(gitCmd)
-	gitCmd.AddCommand(gitModeCmd)
-	gitCmd.AddCommand(gitShallowCmd)
 }

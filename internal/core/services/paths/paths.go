@@ -62,10 +62,7 @@ func EnsureCleanModulesDir(dependencies []domain.Dependency, lock domain.Package
 }
 
 // EnsureCacheDir ensures that the cache directory exists for the dependency.
-func EnsureCacheDir(config env.ConfigProvider, dep domain.Dependency) {
-	if !config.GetGitEmbedded() {
-		return
-	}
+func EnsureCacheDir(dep domain.Dependency) {
 	cacheDir := filepath.Join(env.GetCacheDir(), dep.HashName())
 
 	fi, err := os.Stat(cacheDir)
