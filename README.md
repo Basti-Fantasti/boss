@@ -1,41 +1,38 @@
-# Boss
+# Bossy
 
 ![Boss][bossLogo]
 
 [![Go Report Card][goReportBadge]][goReportLink]
-[![GitHub release (latest by date)][latestReleaseBadge]](https://github.com/HashLoad/boss/releases/latest)
-[![GitHub Release Date][releaseDateBadge]](https://github.com/HashLoad/boss/releases)
-[![GitHub repo size][repoSizeBadge]](https://github.com/HashLoad/boss/archive/refs/heads/main.zip)
-[![GitHub All Releases][totalDownloadsBadge]](https://github.com/HashLoad/boss/releases)
-[![GitHub][githubLicenseBadge]](https://github.com/HashLoad/boss/blob/main/LICENSE)
-[![GitHub issues][githubIssuesBadge]](https://github.com/HashLoad/boss/issues)
-[![GitHub pull requests][githubPullRequestsBadge]](https://github.com/HashLoad/boss/pulls)
-[![Ask DeepWiki][deepWikiBadge]](https://deepwiki.com/HashLoad/boss)
-[![GitHub contributors][githubContributorsBadge]](https://github.com/HashLoad/boss?tab=readme-ov-file#-code-contributors)
+[![GitHub release (latest by date)][latestReleaseBadge]](https://github.com/Basti-Fantasti/bossy/releases/latest)
+[![GitHub Release Date][releaseDateBadge]](https://github.com/Basti-Fantasti/bossy/releases)
+[![GitHub repo size][repoSizeBadge]](https://github.com/Basti-Fantasti/bossy/archive/refs/heads/main.zip)
+[![GitHub All Releases][totalDownloadsBadge]](https://github.com/Basti-Fantasti/bossy/releases)
+[![GitHub][githubLicenseBadge]](https://github.com/Basti-Fantasti/bossy/blob/main/LICENSE)
+[![GitHub issues][githubIssuesBadge]](https://github.com/Basti-Fantasti/bossy/issues)
+[![GitHub pull requests][githubPullRequestsBadge]](https://github.com/Basti-Fantasti/bossy/pulls)
+[![GitHub contributors][githubContributorsBadge]](https://github.com/Basti-Fantasti/bossy?tab=readme-ov-file#-code-contributors)
 ![Github Stars][repoStarsBadge]
 
-_Boss_ is an open source dependency manager inspired by [npm](https://www.npmjs.com/) for projects developed in _Delphi_ and _Lazarus_.
-
-[![Boss][telegramBadge]][telegramLink]
+_Bossy_ is a fork of [Boss](https://github.com/HashLoad/boss) — an open source dependency manager for Delphi and Lazarus projects developed by HashLoad —.
 
 <!-- getting start with emoji -->
 
 ## 🚀 Getting started
 
-We have a [Getting Started](https://medium.com/@matheusarendthunsche/come%C3%A7ando-com-o-boss-72aad9bcc13) article to help you get started with Boss.
+There is a [Getting Started](https://medium.com/@matheusarendthunsche/come%C3%A7ando-com-o-boss-72aad9bcc13) article for the upstream Boss project that covers the basic concepts. Note it references `boss` commands; use `bossy` instead when following along.
 
 ## 📦 Installation
 
-- Download [setup](https://github.com/hashload/boss/releases)
-- Just type `boss` in the terminal
+- Download [setup](https://github.com/Basti-Fantasti/bossy/releases)
+- Just type `bossy` in the terminal
 - (Optional) Install a [Boss Delphi IDE complement](https://github.com/hashload/boss-ide)
 
 Or you can use the following the steps below:
 
-- Download the latest version of the [Boss](https://github.com/hashload/boss/releases)
+- Download the latest version of [Bossy](https://github.com/Basti-Fantasti/bossy/releases)
 - Extract the files to a folder
 - Add the folder to the system path
-- Run the command `boss` in the terminal
+- Run the command `bossy` in the terminal
 
 ## 📚 Available Commands
 
@@ -44,9 +41,9 @@ Or you can use the following the steps below:
 Initialize a new project and create a `boss.json` file. Add `-q` or `--quiet` to skip interactive prompts and use default values.
 
 ```shell
-boss init
-boss init -q
-boss init --quiet
+bossy init
+bossy init -q
+bossy init --quiet
 ```
 
 ### > Install
@@ -54,10 +51,10 @@ boss init --quiet
 Install one or more dependencies with real-time progress tracking:
 
 ```shell
-boss install <dependency>
+bossy install <dependency>
 ```
 
-**Progress Tracking:** Boss displays progress for each dependency being installed:
+**Progress Tracking:** Bossy displays progress for each dependency being installed:
 
 ```
 ⏳ horse                          Waiting...
@@ -67,19 +64,19 @@ boss install <dependency>
 📦 boss-core                      Installed
 ```
 
-The dependency name is case insensitive. For example, `boss install horse` is the same as `boss install HORSE`.
+The dependency name is case insensitive. For example, `bossy install horse` is the same as `bossy install HORSE`.
 
 ```shell
-boss install horse                        # HashLoad organization on GitHub
-boss install fake/horse                   # Fake organization on GitHub
-boss install gitlab.com/fake/horse        # Fake organization on GitLab
-boss install https://gitlab.com/fake/horse # Full URL
+bossy install horse                        # HashLoad organization on GitHub
+bossy install fake/horse                   # Fake organization on GitHub
+bossy install gitlab.com/fake/horse        # Fake organization on GitLab
+bossy install https://gitlab.com/fake/horse # Full URL
 ```
 
 You can also specify the compiler version and platform:
 
 ```sh
-boss install --compiler=37.0 --platform=Win64
+bossy install --compiler=37.0 --platform=Win64
 ```
 
 > Aliases: i, add
@@ -89,7 +86,7 @@ boss install --compiler=37.0 --platform=Win64
 Remove a dependency from the project:
 
 ```sh
-boss uninstall <dependency>
+bossy uninstall <dependency>
 ```
 
 > Aliases: remove, rm, r, un, unlink
@@ -99,18 +96,18 @@ boss uninstall <dependency>
 Update all installed dependencies to their latest compatible versions:
 
 ```sh
-boss update
+bossy update
 ```
 
 > Aliases: up
 
 ### > Upgrade
 
-Upgrade the Boss CLI to the latest version. Add `--dev` to upgrade to the latest pre-release:
+Upgrade the Bossy CLI to the latest version. Add `--dev` to upgrade to the latest pre-release:
 
 ```sh
-boss upgrade
-boss upgrade --dev
+bossy upgrade
+bossy upgrade --dev
 ```
 
 ### > Dependencies
@@ -118,10 +115,10 @@ boss upgrade --dev
 List all project dependencies in a tree format. Add `-v` to show version information:
 
 ```shell
-boss dependencies
-boss dependencies -v
-boss dependencies <package>
-boss dependencies <package> -v
+bossy dependencies
+bossy dependencies -v
+bossy dependencies <package>
+bossy dependencies <package> -v
 ```
 
 > Aliases: dep, ls, list, ll, la, dependency
@@ -142,40 +139,63 @@ Execute a custom script defined in your `boss.json` file. Scripts are defined in
 ```
 
 ```sh
-boss run build
-boss run test
-boss run clean
+bossy run build
+bossy run test
+bossy run clean
 ```
 
-### > Login
+### > Authentication
 
-Register credentials for a repository. Useful for private repositories:
+Bossy uses different authentication mechanisms depending on transport and
+context:
 
+- **Public repositories** (e.g. `github.com/HashLoad/horse`): no setup needed.
+- **Private SSH repositories** (`git@gitlab.mydomain.com:foo/bar.git`): bossy invokes
+  the system `git` binary. Configure `ssh-agent`, `~/.ssh/config`, and your
+  SSH key the way you would for any other git workflow. No `bossy auth`
+  command is required for SSH.
+- **Private HTTPS repositories**: store basic-auth credentials per host:
+  ```sh
+  bossy auth set gitlab.mydomain.com              # interactive
+  bossy auth set gitlab.mydomain.com -u user -p pat
+  bossy auth list
+  bossy auth rm gitlab.mydomain.com
+  ```
+- **CI/CD environments**: bossy auto-detects GitLab CI via `GITLAB_CI`,
+  `CI_SERVER_HOST`, and `CI_JOB_TOKEN`. No setup needed in the runner.
+  See [`docs/ci.md`](docs/ci.md).
+
+For non-GitLab CI runners or one-off overrides:
 ```sh
-boss login <repo>
-boss login <repo> -u UserName -p Password
-boss login <repo> -s -k PrivateKey -p PassPhrase  # SSH authentication
+export BOSSY_AUTH_GITLAB_MYDOMAIN_COM=https-token:gitlab-ci-token:$CI_JOB_TOKEN
+# or, force SSH for a host:
+export BOSSY_AUTH_GITLAB_MYDOMAIN_COM=ssh
 ```
 
-> Aliases: adduser, add-user
-
-### > Logout
-
-Remove saved credentials for a repository:
-
+To pin a default protocol per host:
 ```sh
-boss logout <repo>
+bossy config git protocol gitlab.mydomain.com ssh
+bossy config git protocol github.com https
 ```
+
+### > Dependency URL forms
+
+In `boss.json` and on the `bossy install` command line, you can use any of:
+
+- Bare name → defaults to `github.com/hashload/<name>` (e.g. `horse`).
+- `host/owner/repo`
+- `git@host:owner/repo[.git]` — pins the dep to SSH.
+- `https://host/owner/repo[.git]` — pins the dep to HTTPS.
 
 ### > Version
 
-Show the Boss CLI version:
+Show the Bossy CLI version:
 
 ```shell
-boss version
-boss v
-boss -v
-boss --version
+bossy version
+bossy v
+bossy -v
+bossy --version
 ```
 
 > Aliases: v
@@ -187,8 +207,8 @@ boss --version
 Use global environment for installation. Packages installed globally are available system-wide:
 
 ```sh
-boss install -g <dependency>
-boss --global install <dependency>
+bossy install -g <dependency>
+bossy --global install <dependency>
 ```
 
 ### > Debug (-d)
@@ -196,8 +216,8 @@ boss --global install <dependency>
 Enable debug mode to see detailed output:
 
 ```sh
-boss install --debug
-boss -d install
+bossy install --debug
+bossy -d install
 ```
 
 ### > Help (-h)
@@ -205,32 +225,32 @@ boss -d install
 Show help for any command:
 
 ```sh
-boss --help
-boss <command> --help
+bossy --help
+bossy <command> --help
 ```
 
 ## Configuration
 
 ### > Cache
 
-Manage the Boss cache. Remove all cached modules to free up disk space:
+Manage the Bossy cache. Remove all cached modules to free up disk space:
 
 ```sh
-boss config cache rm
+bossy config cache rm
 ```
 
 > Aliases: purge, clean
 
 ### > Delphi Version
 
-You can configure which Delphi version BOSS should use for compilation. This is useful when you have multiple Delphi versions installed.
+You can configure which Delphi version Bossy should use for compilation. This is useful when you have multiple Delphi versions installed.
 
 #### List available versions
 
 Lists all detected Delphi installations (32-bit and 64-bit) with their indexes.
 
 ```sh
-boss config delphi list
+bossy config delphi list
 ```
 
 #### Select a version
@@ -238,45 +258,30 @@ boss config delphi list
 Selects a specific Delphi version to use globally. You can use the index from the list command, the version number, or the version with architecture.
 
 ```sh
-boss config delphi use <index>
+bossy config delphi use <index>
 # or
-boss config delphi use <version>
+bossy config delphi use <version>
 # or
-boss config delphi use <version>-<arch>
+bossy config delphi use <version>-<arch>
 ```
 
 Example:
 ```sh
-boss config delphi use 0
-boss config delphi use 37.0
-boss config delphi use 37.0-Win64
+bossy config delphi use 0
+bossy config delphi use 37.0
+bossy config delphi use 37.0-Win64
 ```
 
-### > Git Client
-
-You can configure which Git client BOSS should use.
-
-- `embedded`: Uses the built-in go-git client (default).
-- `native`: Uses the system's installed git client (git.exe).
-
-Using `native` is recommended on Windows if you need support for `core.autocrlf` (automatic line ending conversion).
-
-```sh
-boss config git mode native
-# or
-boss config git mode embedded
-```
-
-#### Shallow Clone
+### > Shallow Clone
 
 You can enable shallow cloning to significantly speed up dependency downloads. Shallow clones only fetch the latest commit without the full git history, reducing download size dramatically (e.g., from 127 MB to <1 MB for large repositories).
 
 ```sh
 # Enable shallow clone (faster, recommended for CI/CD)
-boss config git shallow true
+bossy config git shallow true
 
 # Disable shallow clone (full history)
-boss config git shallow false
+bossy config git shallow false
 ```
 
 **Note:** Shallow clone is disabled by default to maintain compatibility. When enabled, you won't have access to the full git history of dependencies.
@@ -286,10 +291,10 @@ You can also temporarily enable shallow clone using an environment variable:
 ```sh
 # Windows
 set BOSS_GIT_SHALLOW=1
-boss install
+bossy install
 
 # Linux/macOS
-BOSS_GIT_SHALLOW=1 boss install
+BOSS_GIT_SHALLOW=1 bossy install
 ```
 
 ### > Project Toolchain
@@ -318,10 +323,10 @@ Supported fields in `toolchain`:
 ## Samples
 
 ```sh
-boss install horse
-boss install horse:1.0.0
-boss install -g delphi-docker
-boss install -g boss-ide
+bossy install horse
+bossy install horse:1.0.0
+bossy install -g delphi-docker
+bossy install -g boss-ide
 ```
 
 ## Using [semantic versioning](https://semver.org/) to specify update types your package can accept
@@ -345,7 +350,7 @@ Here's a comprehensive example showing all available fields:
 ```json
 {
   "name": "my-project",
-  "description": "A sample Delphi project using Boss",
+  "description": "A sample Delphi project using Bossy",
   "version": "1.0.0",
   "homepage": "https://github.com/myuser/my-project",
   "mainsrc": "src/",
@@ -423,7 +428,7 @@ Here's a comprehensive example showing all available fields:
   ]
   ```
 
-  **Note:** If not specified, Boss won't compile the package but will still manage dependencies.
+  **Note:** If not specified, Bossy won't compile the package but will still manage dependencies.
 
 #### Dependencies
 
@@ -445,7 +450,7 @@ Here's a comprehensive example showing all available fields:
 
 #### Custom Scripts
 
-- **`scripts`** (optional): Custom commands you can run with `boss run <script-name>`.
+- **`scripts`** (optional): Custom commands you can run with `bossy run <script-name>`.
   ```json
   "scripts": {
     "build": "msbuild MyProject.dproj /p:Config=Release",
@@ -457,8 +462,8 @@ Here's a comprehensive example showing all available fields:
 
   Execute with:
   ```sh
-  boss run build
-  boss run test
+  bossy run build
+  bossy run test
   ```
 
 #### Engine Requirements
@@ -504,16 +509,16 @@ The minimal valid `boss.json` file:
 
 ### Creating a new boss.json
 
-Use `boss init` to create a new `boss.json` interactively:
+Use `bossy init` to create a new `boss.json` interactively:
 
 ```sh
-boss init
+bossy init
 ```
 
 Or use quiet mode for defaults:
 
 ```sh
-boss init -q
+bossy init -q
 ```
 
 ### Example: Library Package
@@ -562,24 +567,17 @@ boss init -q
 
 ## 💻 Code Contributors
 
-![GitHub Contributors Image](https://contrib.rocks/image?repo=Hashload/boss)
+![GitHub Contributors Image](https://contrib.rocks/image?repo=Basti-Fantasti/bossy)
 
-[githubContributorsBadge]: https://img.shields.io/github/contributors/hashload/boss
-[ciBadge]: https://github.com/hashload/boss/actions/workflows/ci.yml/badge.svg
-[ciLink]: https://github.com/hashload/boss/actions/workflows/ci.yml
-[codecovBadge]: https://codecov.io/gh/hashload/boss/branch/main/graph/badge.svg
-[codecovLink]: https://codecov.io/gh/hashload/boss
-[goReportBadge]: https://goreportcard.com/badge/github.com/hashload/boss
-[goReportLink]: https://goreportcard.com/report/github.com/hashload/boss
+[githubContributorsBadge]: https://img.shields.io/github/contributors/Basti-Fantasti/bossy
+[goReportBadge]: https://goreportcard.com/badge/github.com/basti-fantasti/bossy
+[goReportLink]: https://goreportcard.com/report/github.com/basti-fantasti/bossy
 [bossLogo]: ./assets/png/sized/boss-logo-128px.png
-[latestReleaseBadge]: https://img.shields.io/github/v/release/hashload/boss
-[releaseDateBadge]: https://img.shields.io/github/release-date/hashload/boss
-[repoSizeBadge]: https://img.shields.io/github/repo-size/hashload/boss
-[totalDownloadsBadge]: https://img.shields.io/github/downloads/hashload/boss/total
-[githubLicenseBadge]: https://img.shields.io/github/license/hashload/boss
-[githubIssuesBadge]: https://img.shields.io/github/issues/hashload/boss
-[githubPullRequestsBadge]: https://img.shields.io/github/issues-pr/hashload/boss
-[deepwikiBadge]: https://deepwiki.com/badge.svg
-[telegramBadge]: https://img.shields.io/badge/telegram-join%20channel-7289DA?style=flat-square
-[telegramLink]: https://t.me/hashload
-[repoStarsBadge]: https://img.shields.io/github/stars/hashload/boss?style=social
+[latestReleaseBadge]: https://img.shields.io/github/v/release/Basti-Fantasti/bossy
+[releaseDateBadge]: https://img.shields.io/github/release-date/Basti-Fantasti/bossy
+[repoSizeBadge]: https://img.shields.io/github/repo-size/Basti-Fantasti/bossy
+[totalDownloadsBadge]: https://img.shields.io/github/downloads/Basti-Fantasti/bossy/total
+[githubLicenseBadge]: https://img.shields.io/github/license/Basti-Fantasti/bossy
+[githubIssuesBadge]: https://img.shields.io/github/issues/Basti-Fantasti/bossy
+[githubPullRequestsBadge]: https://img.shields.io/github/issues-pr/Basti-Fantasti/bossy
+[repoStarsBadge]: https://img.shields.io/github/stars/Basti-Fantasti/bossy?style=social
