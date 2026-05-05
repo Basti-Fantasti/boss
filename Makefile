@@ -107,8 +107,8 @@ dist: build-cross
 		cd _dist && \
 		$(DIST_DIRS) cp ../LICENSE {} \; && \
 		$(DIST_DIRS) cp ../README.md {} \; && \
-		$(DIST_DIRS) tar -zcf boss-{}.tar.gz {} \; && \
-		$(DIST_DIRS) zip -r boss-{}.zip {} \; \
+		$(DIST_DIRS) tar -zcf bossy-{}.tar.gz {} \; && \
+		$(DIST_DIRS) zip -r bossy-{}.zip {} \; \
 	)
 .PHONY: checksum
 checksum:
@@ -143,6 +143,7 @@ info:
 
 .PHONY: default_hash
 default_hash:
-	@uuidgen --name boss --namespace @url github.com/hashload/boss --sha1
+	# Namespace seed deliberately uses fork identity (not upstream hashload/boss)
+	@uuidgen --name bossy --namespace @url github.com/basti-fantasti/bossy --sha1
 
 dist-complete: dist checksum
