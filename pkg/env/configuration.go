@@ -33,6 +33,7 @@ type Configuration struct {
 	ConfigVersion       int64            `json:"config_version"`
 	GitEmbedded         bool             `json:"git_embedded"`
 	GitShallow          bool             `json:"git_shallow,omitempty"`
+	HostProtocols       map[string]string `json:"host_protocols,omitempty"`
 
 	Advices struct {
 		SetupPath bool `json:"setup_path,omitempty"`
