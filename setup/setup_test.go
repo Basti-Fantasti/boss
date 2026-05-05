@@ -86,7 +86,7 @@ func TestCreatePaths(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create boss home structure
-	bossHome := filepath.Join(tempDir, consts.FolderBossHome)
+	bossHome := filepath.Join(tempDir, consts.UserHomeDir)
 	t.Setenv("BOSS_HOME", bossHome)
 
 	if err := os.MkdirAll(bossHome, 0755); err != nil {
@@ -134,7 +134,7 @@ func TestCreatePathsIdempotent(t *testing.T) {
 	t.Setenv("BOSS_HOME", tempDir)
 
 	// Create boss home structure
-	bossHome := filepath.Join(tempDir, consts.FolderBossHome)
+	bossHome := filepath.Join(tempDir, consts.UserHomeDir)
 	if err := os.MkdirAll(bossHome, 0755); err != nil {
 		t.Fatalf("Failed to create boss home: %v", err)
 	}

@@ -16,7 +16,7 @@ func TestEnsureCacheDir(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Set BOSS_HOME to temp/.boss to match expected structure
-	bossHome := filepath.Join(tempDir, consts.FolderBossHome)
+	bossHome := filepath.Join(tempDir, consts.UserHomeDir)
 	t.Setenv("BOSS_HOME", bossHome)
 
 	// Create the boss home folder structure

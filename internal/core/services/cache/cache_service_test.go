@@ -138,4 +138,4 @@ func TestService_LoadRepositoryData_NotFound(t *testing.T) {
 }
 
 // Ensure consts is used (to avoid unused import error).
-var _ = consts.FolderBossHome
+var _ = consts.UserHomeDir

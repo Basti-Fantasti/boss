@@ -56,7 +56,7 @@ func TestConstants_Folders(t *testing.T) {
 	}{
 		{"FolderDependencies", consts.FolderDependencies, "modules"},
 		{"FolderEnv", consts.FolderEnv, "env"},
-		{"FolderBossHome", consts.FolderBossHome, ".boss"},
+		{"UserHomeDir", consts.UserHomeDir, ".bossy"},
 		{"BinFolder", consts.BinFolder, ".bin"},
 		{"BplFolder", consts.BplFolder, ".bpl"},
 		{"DcpFolder", consts.DcpFolder, ".dcp"},

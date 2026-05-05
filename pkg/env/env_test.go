@@ -79,8 +79,8 @@ func TestGetBossHome(t *testing.T) {
 		// Note: cannot unset env in parallel tests, just verify the function works
 		result := env.GetBossHome()
 		// Should contain the boss home folder
-		if !strings.HasSuffix(result, consts.FolderBossHome) {
-			t.Errorf("GetBossHome() = %q, should end with %q", result, consts.FolderBossHome)
+		if !strings.HasSuffix(result, consts.UserHomeDir) {
+			t.Errorf("GetBossHome() = %q, should end with %q", result, consts.UserHomeDir)
 		}
 	})
 }

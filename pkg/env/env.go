@@ -104,7 +104,7 @@ func GetBossHome() string {
 			msg.Err("❌ Error to get home directory", err)
 			return ""
 		}
-		homeDir = filepath.Join(home, consts.FolderBossHome)
+		homeDir = filepath.Join(home, consts.UserHomeDir)
 	}
 	return homeDir
 }

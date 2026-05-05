@@ -23,8 +23,6 @@ const (
 	FolderEnvDcp = FolderEnv + string(filepath.Separator) + "dcp"
 	FolderEnvDcu = FolderEnv + string(filepath.Separator) + "dcu"
 
-	FolderBossHome = ".boss"
-
 	BinFolder string = ".bin"
 	BplFolder string = ".bpl"
 	DcpFolder string = ".dcp"
@@ -72,8 +70,6 @@ const (
 
 	GitBranchMain   = "main"
 	GitBranchMaster = "master"
-
-	GitProtocolSSH = "ssh"
 )
 
 // Platform represents a target compilation platform.

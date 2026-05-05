@@ -16,9 +16,10 @@ import (
 	"github.com/minio/selfupdate"
 )
 
-const (
-	githubOrganization = "HashLoad"
-	githubRepository   = "boss"
+//nolint:gochecknoglobals // branding vars sourced from consts to allow test overrides
+var (
+	githubOrganization = consts.GithubOrganization
+	githubRepository   = consts.GithubRepository
 )
 
 // BossUpgrade performs the self-update of the boss executable.
@@ -89,5 +90,5 @@ func getAssetName() string {
 		ext = "tar.gz"
 	}
 
-	return fmt.Sprintf("boss-%s-%s.%s", runtime.GOOS, runtime.GOARCH, ext)
+	return fmt.Sprintf("%s-%s-%s.%s", consts.ReleaseAssetPrefix, runtime.GOOS, runtime.GOARCH, ext)
 }
