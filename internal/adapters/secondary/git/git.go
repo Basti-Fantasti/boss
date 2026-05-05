@@ -169,7 +169,7 @@ func Checkout(_ env.ConfigProvider, dep domain.Dependency, referenceName plumbin
 		return err
 	}
 	if decision.Transport == auth.TransportSSH {
-		return CheckoutNative(dep, referenceName)
+		return CheckoutNative(dep, decision, referenceName)
 	}
 	return CheckoutEmbedded(dep, referenceName)
 }
@@ -180,7 +180,7 @@ func Pull(_ env.ConfigProvider, dep domain.Dependency) error {
 		return err
 	}
 	if decision.Transport == auth.TransportSSH {
-		return PullNative(dep)
+		return PullNative(dep, decision)
 	}
 	return PullEmbedded(dep, decision)
 }

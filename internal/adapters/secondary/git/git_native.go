@@ -4,8 +4,8 @@ package gitadapter
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,18 +19,49 @@ import (
 )
 
 // requireGit checks that the system git binary is on PATH. SSH transports
-// require it; we hard-fail with a clear message if it's missing.
-func requireGit() error {
+// require it; we hard-fail with a clear message that includes dep and host context.
+func requireGit(dep domain.Dependency, host string) error {
 	if _, err := exec.LookPath("git"); err != nil {
-		return errors.New("SSH cloning requires `git` to be installed and on PATH. " +
-			"Install git, or change the dependency to an HTTPS URL")
+		return fmt.Errorf(
+			"SSH cloning requires `git` to be installed and on PATH.\n"+
+				"Dependency %s resolved to SSH transport (host: %s).\n"+
+				"Either install git, or change the dependency to an HTTPS URL",
+			dep.Name(), host,
+		)
 	}
 	return nil
 }
 
+// hostFromURL extracts the hostname from a URL string. Falls back to the raw
+// URL if parsing fails (should not happen for well-formed decision URLs).
+func hostFromURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		// SSH URLs like git@github.com:owner/repo are not standard; extract
+		// the host between "@" and ":".
+		if at := len("git@"); at < len(rawURL) {
+			s := rawURL[at:]
+			if colon := findByte(s, ':'); colon >= 0 {
+				return s[:colon]
+			}
+		}
+		return rawURL
+	}
+	return u.Hostname()
+}
+
+func findByte(s string, b byte) int {
+	for i := range len(s) {
+		if s[i] == b {
+			return i
+		}
+	}
+	return -1
+}
+
 // CloneCacheNative clones the dependency repository to the cache using the native git client.
 func CloneCacheNative(dep domain.Dependency, decision auth.Decision) (*git2.Repository, error) {
-	if err := requireGit(); err != nil {
+	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
 		return nil, err
 	}
 	msg.Info("📥 Downloading dependency %s", dep.Repository)
@@ -41,8 +72,8 @@ func CloneCacheNative(dep domain.Dependency, decision auth.Decision) (*git2.Repo
 }
 
 // UpdateCacheNative updates the dependency repository in the cache using the native git client.
-func UpdateCacheNative(dep domain.Dependency, _ auth.Decision) (*git2.Repository, error) {
-	if err := requireGit(); err != nil {
+func UpdateCacheNative(dep domain.Dependency, decision auth.Decision) (*git2.Repository, error) {
+	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
 		return nil, err
 	}
 	if err := getWrapperFetch(dep); err != nil {
@@ -136,7 +167,10 @@ func initSubmodulesNative(dep domain.Dependency) error {
 	return nil
 }
 
-func CheckoutNative(dep domain.Dependency, referenceName plumbing.ReferenceName) error {
+func CheckoutNative(dep domain.Dependency, decision auth.Decision, referenceName plumbing.ReferenceName) error {
+	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
+		return err
+	}
 	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
 	//nolint:gosec,nolintlint // Git command with controlled repository reference
 	cmd := exec.Command("git", "checkout", "-f", referenceName.Short()) // #nosec G204 -- Controlled git checkout command
@@ -144,7 +178,10 @@ func CheckoutNative(dep domain.Dependency, referenceName plumbing.ReferenceName)
 	return runCommand(cmd)
 }
 
-func PullNative(dep domain.Dependency) error {
+func PullNative(dep domain.Dependency, decision auth.Decision) error {
+	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
+		return err
+	}
 	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
 	cmd := exec.Command("git", "pull", "--force")
 	cmd.Dir = dirModule
