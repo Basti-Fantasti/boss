@@ -132,6 +132,21 @@ func CheckoutEmbedded(dep domain.Dependency, referenceName plumbing.ReferenceNam
 	})
 }
 
+func CheckoutHashEmbedded(dep domain.Dependency, hash plumbing.Hash) error {
+	repository := GetRepository(dep)
+	if repository == nil {
+		return fmt.Errorf("repository not found for %s", dep.Repository)
+	}
+	worktree, err := repository.Worktree()
+	if err != nil {
+		return err
+	}
+	return worktree.Checkout(&git.CheckoutOptions{
+		Hash:  hash,
+		Force: true,
+	})
+}
+
 func PullEmbedded(dep domain.Dependency, decision auth.Decision) error {
 	repository := GetRepository(dep)
 	worktree, err := repository.Worktree()

@@ -174,6 +174,20 @@ func Checkout(_ env.ConfigProvider, dep domain.Dependency, referenceName plumbin
 	return CheckoutEmbedded(dep, referenceName)
 }
 
+// CheckoutHash checks out a specific commit SHA in detached-HEAD state.
+// Returns an error if the SHA is not present locally; callers should
+// trigger a deepening fetch and retry on "object not found".
+func CheckoutHash(_ env.ConfigProvider, dep domain.Dependency, hash plumbing.Hash) error {
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		return err
+	}
+	if decision.Transport == auth.TransportSSH {
+		return CheckoutHashNative(dep, decision, hash)
+	}
+	return CheckoutHashEmbedded(dep, hash)
+}
+
 func Pull(_ env.ConfigProvider, dep domain.Dependency) error {
 	decision, err := auth.Resolve(dep)
 	if err != nil {

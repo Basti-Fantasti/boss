@@ -183,6 +183,22 @@ func CheckoutNative(dep domain.Dependency, decision auth.Decision, referenceName
 	return err
 }
 
+func CheckoutHashNative(dep domain.Dependency, decision auth.Decision, hash plumbing.Hash) error {
+	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
+		return err
+	}
+	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
+	// doClone/getWrapperFetch leave dirModule without a .git pointer; restore it
+	// so the git binary can locate the separate gitdir in the cache.
+	writeDotGitFile(dep)
+	//nolint:gosec,nolintlint // Git command with controlled commit hash
+	cmd := exec.Command("git", "checkout", "--detach", hash.String()) // #nosec G204 -- Controlled git checkout command
+	cmd.Dir = dirModule
+	err := runCommand(cmd)
+	_ = os.Remove(filepath.Join(dirModule, ".git"))
+	return err
+}
+
 func PullNative(dep domain.Dependency, decision auth.Decision) error {
 	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
 		return err
