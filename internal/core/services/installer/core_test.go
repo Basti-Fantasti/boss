@@ -56,6 +56,31 @@ func TestCollectAllDependencies(t *testing.T) {
 	}
 }
 
+// TestShouldReconcile guards the fix for the bug where running
+// `bossy install <pkg>` or `bossy update <pkg>` with explicit args caused
+// every other installed module and lock entry to be wiped, because the
+// post-install reconciliation walked the args-filtered dependency subset
+// instead of the full tree. Targeted invocations must skip reconciliation.
+func TestShouldReconcile(t *testing.T) {
+	tests := []struct {
+		name string
+		opts InstallOptions
+		want bool
+	}{
+		{name: "no args reconciles", opts: InstallOptions{}, want: true},
+		{name: "single arg skips", opts: InstallOptions{Args: []string{"dep1"}}, want: false},
+		{name: "multiple args skip", opts: InstallOptions{Args: []string{"dep1", "dep2"}}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldReconcile(tt.opts); got != tt.want {
+				t.Errorf("shouldReconcile(%+v) = %v, want %v", tt.opts, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestAddWarning(t *testing.T) {
 	ctx := &installContext{
 		warnings: make([]string, 0),

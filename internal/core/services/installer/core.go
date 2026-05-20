@@ -122,9 +122,10 @@ func DoInstall(config env.ConfigProvider, options InstallOptions, pkg *domain.Pa
 	msg.SetProgressTracker(nil)
 	progress.Stop()
 
-	paths.EnsureCleanModulesDir(dependencies, pkg.Lock)
-
-	pkg.Lock.CleanRemoved(dependencies)
+	if shouldReconcile(options) {
+		paths.EnsureCleanModulesDir(dependencies, pkg.Lock)
+		pkg.Lock.CleanRemoved(dependencies)
+	}
 	if err := pkgmanager.SavePackageCurrent(pkg); err != nil {
 		msg.Warn("⚠️ Failed to save package: %v", err)
 	}
@@ -151,6 +152,15 @@ func DoInstall(config env.ConfigProvider, options InstallOptions, pkg *domain.Pa
 
 	msg.Success("✅ Installation completed successfully!")
 	return nil
+}
+
+// shouldReconcile reports whether DoInstall should reconcile modules/ and the
+// lock against the dependency set it just processed. A targeted invocation
+// (`bossy install <pkg>` or `bossy update <pkg>`) only processes a subset of
+// `bossy.json`, so reconciling against that subset would wipe every other
+// installed module and lock entry. Only reconcile on a full-tree install.
+func shouldReconcile(options InstallOptions) bool {
+	return len(options.Args) == 0
 }
 
 func (ic *installContext) addWarning(warning string) {
