@@ -18,17 +18,18 @@ import (
 // The configuration is loaded once at startup and injected throughout
 // the application via the ConfigProvider interface.
 type Configuration struct {
-	path                string           `json:"-"`
-	Key                 string           `json:"id"`
-	Auth                map[string]*Auth `json:"auth"`
-	PurgeTime           int              `json:"purge_after"`
-	InternalRefreshRate int              `json:"internal_refresh_rate"`
-	LastPurge           time.Time        `json:"last_purge_cache"`
-	LastInternalUpdate  time.Time        `json:"last_internal_update"`
-	DelphiPath          string           `json:"delphi_path,omitempty"`
-	ConfigVersion       int64            `json:"config_version"`
-	GitShallow          bool             `json:"git_shallow,omitempty"`
+	path                string            `json:"-"`
+	Key                 string            `json:"id"`
+	Auth                map[string]*Auth  `json:"auth"`
+	PurgeTime           int               `json:"purge_after"`
+	InternalRefreshRate int               `json:"internal_refresh_rate"`
+	LastPurge           time.Time         `json:"last_purge_cache"`
+	LastInternalUpdate  time.Time         `json:"last_internal_update"`
+	DelphiPath          string            `json:"delphi_path,omitempty"`
+	ConfigVersion       int64             `json:"config_version"`
+	GitShallow          bool              `json:"git_shallow,omitempty"`
 	HostProtocols       map[string]string `json:"host_protocols,omitempty"`
+	Aliases             map[string]string `json:"aliases,omitempty"`
 
 	Advices struct {
 		SetupPath bool `json:"setup_path,omitempty"`
