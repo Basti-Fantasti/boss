@@ -305,26 +305,26 @@ hostname clutters `bossy install` invocations.
 
 ```sh
 # Set an alias
-bossy config alias gtr gitlab.mydomain.com
+bossy config alias mygit gitlab.mydomain.com
 
 # List configured aliases
 bossy config alias --list
 
 # Remove an alias
-bossy config alias --unset gtr
+bossy config alias --unset mygit
 ```
 
-With the alias `gtr → gitlab.mydomain.com` configured, the following are equivalent:
+With the alias `mygit → gitlab.mydomain.com` configured, the following are equivalent:
 
 ```sh
-bossy install gtr:devops/some-lib
+bossy install mygit:devops/some-lib
 bossy install gitlab.mydomain.com/devops/some-lib
 ```
 
 The expansion respects the host's configured protocol
 (`bossy config git protocol <host> ssh|https`):
 
-- If the host is pinned to `ssh`, `gtr:devops/some-lib` expands to
+- If the host is pinned to `ssh`, `mygit:devops/some-lib` expands to
   `git@gitlab.mydomain.com:devops/some-lib`.
 - Otherwise it expands to `gitlab.mydomain.com/devops/some-lib` (cloned over HTTPS).
 
