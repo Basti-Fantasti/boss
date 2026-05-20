@@ -18,6 +18,7 @@ type DependencyArtifacts struct {
 type LockedDependency struct {
 	Name      string              `json:"name"`
 	Version   string              `json:"version"`
+	Commit    string              `json:"commit,omitempty"`
 	Hash      string              `json:"hash"`
 	Artifacts DependencyArtifacts `json:"artifacts"`
 	Failed    bool                `json:"-"`

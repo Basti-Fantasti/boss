@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -405,5 +406,30 @@ func TestLockedDependency_GetArtifacts_Order(t *testing.T) {
 		if !found {
 			t.Errorf("Artifact %q not found in result", name)
 		}
+	}
+}
+
+func TestLockedDependency_CommitFieldRoundTrip(t *testing.T) {
+	original := domain.PackageLock{
+		Installed: map[string]domain.LockedDependency{
+			"github.com/foo/bar": {
+				Name:    "bar",
+				Version: "1.2.3",
+				Commit:  "abcdef0123456789abcdef0123456789abcdef01",
+				Hash:    "deadbeef",
+			},
+		},
+	}
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var round domain.PackageLock
+	if err := json.Unmarshal(data, &round); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	got := round.Installed["github.com/foo/bar"].Commit
+	if got != "abcdef0123456789abcdef0123456789abcdef01" {
+		t.Errorf("Commit roundtrip: got %q", got)
 	}
 }
