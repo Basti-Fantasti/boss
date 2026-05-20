@@ -525,7 +525,7 @@ func (ic *installContext) checkoutAndUpdate(
 	}
 	err := git.Checkout(ic.config, dep, referenceName)
 
-	ic.lockSvc.AddDependency(ic.rootLocked, dep, referenceName.Short(), ic.modulesDir)
+	ic.lockSvc.AddDependency(ic.rootLocked, dep, referenceName.Short(), "", ic.modulesDir)
 
 	if err != nil {
 		return err

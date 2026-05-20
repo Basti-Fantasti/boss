@@ -170,7 +170,7 @@ func TestLockService_AddDependency_CreatesNewEntry(t *testing.T) {
 
 	dep := domain.ParseDependency("github.com/test/repo", "1.0.0")
 
-	service.AddDependency(lock, dep, "1.0.0", "/modules")
+	service.AddDependency(lock, dep, "1.0.0", "", "/modules")
 
 	if _, ok := lock.Installed["github.com/test/repo"]; !ok {
 		t.Error("expected dependency to be added to lock")
@@ -194,11 +194,26 @@ func TestLockService_AddDependency_UpdatesExistingEntry(t *testing.T) {
 
 	dep := domain.ParseDependency("github.com/test/repo", "2.0.0")
 
-	service.AddDependency(lock, dep, "2.0.0", "/modules")
+	service.AddDependency(lock, dep, "2.0.0", "", "/modules")
 
 	installed := lock.Installed["github.com/test/repo"]
 	if installed.Version != "2.0.0" {
 		t.Errorf("expected version 2.0.0, got %s", installed.Version)
+	}
+}
+
+func TestLockService_AddDependency_StoresCommit(t *testing.T) {
+	repo := NewMockLockRepository()
+	fs := NewMockFileSystem()
+	svc := NewLockService(repo, fs)
+	lock := &domain.PackageLock{Installed: map[string]domain.LockedDependency{}}
+	dep := domain.ParseDependency("github.com/foo/bar", ">0.0.0")
+
+	svc.AddDependency(lock, dep, "1.2.3", "abcdef0123456789abcdef0123456789abcdef01", t.TempDir())
+
+	got := lock.Installed[dep.GetKey()]
+	if got.Commit != "abcdef0123456789abcdef0123456789abcdef01" {
+		t.Errorf("Commit = %q, want pinned SHA", got.Commit)
 	}
 }
 

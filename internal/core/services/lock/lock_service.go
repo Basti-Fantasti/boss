@@ -69,7 +69,7 @@ func (s *LockService) NeedUpdate(lock *domain.PackageLock, dep domain.Dependency
 }
 
 // AddDependency adds a dependency to the lock with computed hash.
-func (s *LockService) AddDependency(lock *domain.PackageLock, dep domain.Dependency, version, modulesDir string) {
+func (s *LockService) AddDependency(lock *domain.PackageLock, dep domain.Dependency, version, commit, modulesDir string) {
 	depDir := filepath.Join(modulesDir, dep.Name())
 	hash := utils.HashDir(depDir)
 
@@ -78,6 +78,7 @@ func (s *LockService) AddDependency(lock *domain.PackageLock, dep domain.Depende
 		lock.Installed[key] = domain.LockedDependency{
 			Name:    dep.Name(),
 			Version: version,
+			Commit:  commit,
 			Hash:    hash,
 			Changed: true,
 			Artifacts: domain.DependencyArtifacts{
@@ -89,6 +90,9 @@ func (s *LockService) AddDependency(lock *domain.PackageLock, dep domain.Depende
 		}
 	} else {
 		existing.Version = version
+		if commit != "" {
+			existing.Commit = commit
+		}
 		existing.Hash = hash
 		lock.Installed[key] = existing
 	}
