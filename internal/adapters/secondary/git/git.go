@@ -188,6 +188,21 @@ func CheckoutHash(_ env.ConfigProvider, dep domain.Dependency, hash plumbing.Has
 	return CheckoutHashEmbedded(dep, hash)
 }
 
+// UnshallowFetch performs a deepening fetch on the dependency repository so that
+// commit history previously omitted by a shallow clone becomes available. It is
+// the recovery path used when a pinned SHA cannot be checked out because the
+// object is missing locally. The fetch is a no-op on a complete repository.
+func UnshallowFetch(_ env.ConfigProvider, dep domain.Dependency) error {
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		return err
+	}
+	if decision.Transport == auth.TransportSSH {
+		return UnshallowFetchNative(dep, decision)
+	}
+	return UnshallowFetchEmbedded(dep, decision)
+}
+
 func Pull(_ env.ConfigProvider, dep domain.Dependency) error {
 	decision, err := auth.Resolve(dep)
 	if err != nil {

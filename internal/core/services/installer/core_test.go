@@ -2,6 +2,8 @@
 package installer
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -92,6 +94,47 @@ func TestGetVersion_RawSHAFastPath(t *testing.T) {
 	}
 	if ref.Name() != plumbing.HEAD {
 		t.Errorf("Name = %q, want HEAD", ref.Name())
+	}
+}
+
+// TestIsObjectNotFound verifies the error-classification used by the shallow-
+// clone deepening retry. Both the go-git sentinel and the native-binary wording
+// must classify as "object not found"; unrelated errors must not.
+func TestIsObjectNotFound(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{
+			name: "wrapped go-git ErrObjectNotFound",
+			err:  fmt.Errorf("checkout failed: %w", plumbing.ErrObjectNotFound),
+			want: true,
+		},
+		{
+			name: "native unknown revision",
+			err:  errors.New("unknown revision or path not in the working tree"),
+			want: true,
+		},
+		{
+			name: "unrelated bad-object error",
+			err:  errors.New("fatal: bad object"),
+			want: false,
+		},
+		{
+			name: "mixed-case object not found",
+			err:  errors.New("Object Not Found"),
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isObjectNotFound(tt.err); got != tt.want {
+				t.Errorf("isObjectNotFound(%v) = %v, want %v", tt.err, got, tt.want)
+			}
+		})
 	}
 }
 

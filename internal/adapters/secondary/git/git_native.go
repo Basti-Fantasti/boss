@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/core/services/auth"
@@ -197,6 +198,38 @@ func CheckoutHashNative(dep domain.Dependency, decision auth.Decision, hash plum
 	err := runCommand(cmd)
 	_ = os.Remove(filepath.Join(dirModule, ".git"))
 	return err
+}
+
+// UnshallowFetchNative runs `git fetch --unshallow` against the cached repo.
+// If the repository is already complete, git exits non-zero with a "--unshallow
+// on a complete repository" message; that case is treated as success. Other
+// failures propagate.
+func UnshallowFetchNative(dep domain.Dependency, decision auth.Decision) error {
+	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
+		return err
+	}
+	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
+	writeDotGitFile(dep)
+	cmd := exec.Command("git", "fetch", "--unshallow")
+	cmd.Dir = dirModule
+	err := runCommand(cmd)
+	_ = os.Remove(filepath.Join(dirModule, ".git"))
+	if err != nil && isAlreadyCompleteRepoErr(err) {
+		return nil
+	}
+	return err
+}
+
+// isAlreadyCompleteRepoErr reports whether err is the benign native-git failure
+// emitted when `--unshallow` is invoked on a repository that already has the
+// full history. The wording has been stable across git versions; we match on
+// the canonical substring.
+func isAlreadyCompleteRepoErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "--unshallow on a complete repository")
 }
 
 func PullNative(dep domain.Dependency, decision auth.Decision) error {

@@ -533,7 +533,7 @@ func (ic *installContext) checkoutAndUpdate(
 			}
 			msg.Debug("  📌 %s pinned to %s", dep.Name(), short)
 		}
-		err = git.CheckoutHash(ic.config, dep, plumbing.NewHash(referenceName.Short()))
+		err = ic.checkoutHashWithDeepen(dep, plumbing.NewHash(referenceName.Short()), referenceName.Short())
 	} else {
 		if !ic.progress.IsEnabled() {
 			msg.Debug("  🔍 Checking out %s to %s", dep.Name(), referenceName.Short())
@@ -689,4 +689,35 @@ func (ic *installContext) verifyDependencyCompatibility(dep domain.Dependency) (
 		return "", errors.New(errorMessage)
 	}
 	return errorMessage, nil
+}
+
+// checkoutHashWithDeepen performs a pinned-SHA checkout, retrying once after a
+// deepening fetch when the object is missing locally (typical for shallow
+// clones). The retry is single-shot: a second object-not-found result
+// propagates as-is.
+func (ic *installContext) checkoutHashWithDeepen(dep domain.Dependency, hash plumbing.Hash, short string) error {
+	err := git.CheckoutHash(ic.config, dep, hash)
+	if err == nil || !isObjectNotFound(err) {
+		return err
+	}
+	if fetchErr := git.UnshallowFetch(ic.config, dep); fetchErr != nil {
+		return fmt.Errorf("checkout %s: object missing and deepening fetch failed: %w", short, fetchErr)
+	}
+	return git.CheckoutHash(ic.config, dep, hash)
+}
+
+// isObjectNotFound reports whether err indicates that a referenced git object
+// is missing from the local repository. This is the signal we use to trigger a
+// single deepening fetch on a shallow clone before giving up on a pinned SHA.
+// Matches both the embedded go-git sentinel and the wording emitted by the
+// native git binary (case-insensitive).
+func isObjectNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, plumbing.ErrObjectNotFound) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unknown revision") || strings.Contains(msg, "object not found")
 }

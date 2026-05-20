@@ -3,6 +3,7 @@
 package gitadapter
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -145,6 +146,27 @@ func CheckoutHashEmbedded(dep domain.Dependency, hash plumbing.Hash) error {
 		Hash:  hash,
 		Force: true,
 	})
+}
+
+// UnshallowFetchEmbedded performs a deepening fetch on the cached repository
+// using the embedded go-git implementation. Depth: 0 instructs go-git to fetch
+// the full history. NoErrAlreadyUpToDate is treated as success because the
+// repository may already be complete (not shallow, or already deepened).
+func UnshallowFetchEmbedded(dep domain.Dependency, decision auth.Decision) error {
+	repository := GetRepository(dep)
+	if repository == nil {
+		return fmt.Errorf("repository not found for %s", dep.Repository)
+	}
+	err := repository.Fetch(&git.FetchOptions{
+		Depth: 0,
+		Force: true,
+		Tags:  git.AllTags,
+		Auth:  httpsAuth(decision),
+	})
+	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return err
+	}
+	return nil
 }
 
 func PullEmbedded(dep domain.Dependency, decision auth.Decision) error {
