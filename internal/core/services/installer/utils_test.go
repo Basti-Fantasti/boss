@@ -5,7 +5,119 @@ import (
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/core/services/installer"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
+
+// setupIsolatedConfig redirects BOSS_HOME to a temp dir and reloads the
+// global configuration so tests can freely mutate it without touching
+// the user's real config. Returns the freshly loaded configuration.
+func setupIsolatedConfig(t *testing.T) *env.Configuration {
+	t.Helper()
+	t.Setenv("BOSS_HOME", t.TempDir())
+	env.ReloadGlobalConfiguration()
+	cfg := env.GlobalConfiguration()
+	cfg.Aliases = map[string]string{}
+	cfg.HostProtocols = map[string]string{}
+	return cfg
+}
+
+func TestNormalizeDepArg_Alias_SSH(t *testing.T) {
+	cfg := setupIsolatedConfig(t)
+	cfg.Aliases["gtr"] = "gitlab.mydomain.com"
+	cfg.HostProtocols["gitlab.mydomain.com"] = "ssh"
+
+	key, ok := installer.NormalizeDepKey("gtr:foo/bar")
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if want := "git@gitlab.mydomain.com:foo/bar"; key != want {
+		t.Errorf("key = %q, want %q", key, want)
+	}
+}
+
+func TestNormalizeDepArg_Alias_HTTPS(t *testing.T) {
+	cfg := setupIsolatedConfig(t)
+	cfg.Aliases["gtr"] = "gitlab.mydomain.com"
+	cfg.HostProtocols["gitlab.mydomain.com"] = "https"
+
+	key, ok := installer.NormalizeDepKey("gtr:foo/bar")
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if want := "gitlab.mydomain.com/foo/bar"; key != want {
+		t.Errorf("key = %q, want %q", key, want)
+	}
+}
+
+func TestNormalizeDepArg_Alias_DefaultsToHTTPS(t *testing.T) {
+	// No HostProtocols entry for the alias's host. auth.Resolve defaults to
+	// HTTPS (see internal/core/services/auth/auth.go Layer 6), so the alias
+	// expansion must default the same way.
+	cfg := setupIsolatedConfig(t)
+	cfg.Aliases["gtr"] = "gitlab.mydomain.com"
+
+	key, ok := installer.NormalizeDepKey("gtr:foo/bar")
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if want := "gitlab.mydomain.com/foo/bar"; key != want {
+		t.Errorf("key = %q, want %q", key, want)
+	}
+}
+
+func TestNormalizeDepArg_Alias_StripsDotGit(t *testing.T) {
+	cfg := setupIsolatedConfig(t)
+	cfg.Aliases["gtr"] = "gitlab.mydomain.com"
+	cfg.HostProtocols["gitlab.mydomain.com"] = "ssh"
+
+	key, ok := installer.NormalizeDepKey("gtr:foo/bar.git")
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if want := "git@gitlab.mydomain.com:foo/bar"; key != want {
+		t.Errorf("key = %q, want %q", key, want)
+	}
+}
+
+func TestNormalizeDepArg_SSHURL_DoesNotTriggerAliasExpansion(t *testing.T) {
+	cfg := setupIsolatedConfig(t)
+	// Even with a "git" alias configured, "git@host:path" must short-circuit
+	// because the "git@" prefix marks it as an SSH URL already.
+	cfg.Aliases["git"] = "should.not.be.used"
+
+	key, ok := installer.NormalizeDepKey("git@gitlab.mydomain.com:foo/bar")
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if want := "git@gitlab.mydomain.com:foo/bar"; key != want {
+		t.Errorf("key = %q, want %q", key, want)
+	}
+}
+
+func TestNormalizeDepArg_HTTPSURL_DoesNotTriggerAliasExpansion(t *testing.T) {
+	cfg := setupIsolatedConfig(t)
+	cfg.Aliases["https"] = "should.not.be.used"
+
+	key, ok := installer.NormalizeDepKey("https://github.com/HashLoad/horse")
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if want := "github.com/HashLoad/horse"; key != want {
+		t.Errorf("key = %q, want %q", key, want)
+	}
+}
+
+// Defensive: when an alias-shaped prefix has no corresponding alias entry,
+// the parser must reject it rather than misclassify it as owner/repo or
+// some other shape.
+func TestNormalizeDepArg_UnknownAliasPrefix_Rejected(t *testing.T) {
+	setupIsolatedConfig(t)
+	// No aliases configured.
+
+	if _, ok := installer.NormalizeDepKey("unknown:foo/bar"); ok {
+		t.Error("expected ok=false for unconfigured alias prefix")
+	}
+}
 
 func TestParseDependency(t *testing.T) {
 	tests := []struct {
