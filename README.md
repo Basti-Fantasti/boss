@@ -13,7 +13,7 @@
 [![GitHub contributors][githubContributorsBadge]](https://github.com/Basti-Fantasti/bossy?tab=readme-ov-file#-code-contributors)
 ![Github Stars][repoStarsBadge]
 
-_Bossy_ is a fork of [Boss](https://github.com/HashLoad/boss) — an open source dependency manager for Delphi and Lazarus projects developed by HashLoad —.
+_Bossy_ is a fork of [Boss](https://github.com/HashLoad/boss) — an open source dependency manager for Delphi and Lazarus projects developed by HashLoad.
 
 <!-- getting start with emoji -->
 
