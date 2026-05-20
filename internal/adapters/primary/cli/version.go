@@ -15,7 +15,7 @@ func versionCmdRegister(root *cobra.Command) {
 		Long:    `This command show the client version`,
 		Aliases: []string{"v"},
 		Example: `  Print version:
-  boss version`,
+  bossy version`,
 		Run: func(_ *cobra.Command, _ []string) {
 			printVersion()
 		},
@@ -28,7 +28,7 @@ func versionCmdRegister(root *cobra.Command) {
 func printVersion() {
 	v := version.Get()
 
-	msg.Info("Boss CLI Version: %s", v.Version)
+	msg.Info("Bossy CLI Version: %s", v.Version)
 	msg.Info("Go Version: %s", v.GoVersion)
 	msg.Info("Git Commit: %s", v.GitCommit)
 }
