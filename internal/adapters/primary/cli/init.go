@@ -23,12 +23,12 @@ func initCmdRegister(root *cobra.Command) {
 	var initCmd = &cobra.Command{
 		Use:   "init",
 		Short: "Initialize a new project",
-		Long:  "Initialize a new project and creates a boss.json file",
+		Long:  "Initialize a new project and creates a bossy.json file",
 		Example: `  Initialize a new project:
-  boss init
+  bossy init
 
   Initialize a new project without having it ask any questions:
-  boss init --quiet`,
+  bossy init --quiet`,
 		Run: func(_ *cobra.Command, _ []string) {
 			doInitialization(quiet)
 		},
@@ -92,11 +92,11 @@ func getParamOrDef(msg string, def ...string) string {
 // printHead prints the head message.
 func printHead() {
 	msg.Info(`
-This utility will walk you through creating a boss.json file.
+This utility will walk you through creating a bossy.json file.
 It only covers the most common items, and tries to guess sensible defaults.
 
-Use 'boss install <pkg>' afterwards to install a package and
-save it as a dependency in the boss.json file.
+Use 'bossy install <pkg>' afterwards to install a package and
+save it as a dependency in the bossy.json file.
 
 Press ^C at any time to quit.
 `)

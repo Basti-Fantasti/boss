@@ -19,10 +19,12 @@ import (
 )
 
 // runMigrations runs one-shot idempotent migrations before any command executes.
-// MigrateHome copies ~/.boss → ~/.bossy so subsequent runs find the config in
-// the new location. MigrateBossJSON rewrites :ssh version suffixes to SSH URL
-// keys in the project boss.json. Both must run before setup.Initialize so that
-// any newly migrated files are visible to the rest of startup.
+// MigrateHome copies ~/.boss → ~/.bossy (and renames boss.cfg.json →
+// bossy.cfg.json) so subsequent runs find the config in the new location.
+// MigrateProjectFiles renames boss.json/boss-lock.json in the cwd to their
+// bossy-* counterparts. MigrateBossJSON rewrites :ssh version suffixes to SSH
+// URL keys in the project manifest. All must run before setup.Initialize so
+// that any newly migrated files are visible to the rest of startup.
 func runMigrations() {
 	if home, err := homedir.Dir(); err == nil {
 		if moved, _ := migrate.MigrateHome(home); moved {
@@ -31,8 +33,11 @@ func runMigrations() {
 		}
 	}
 	if cwd, err := os.Getwd(); err == nil {
-		if changed, _ := migrate.MigrateBossJSON(filepath.Join(cwd, "boss.json")); changed {
-			msg.Info("ℹ️  Migrated boss.json (:ssh suffix → SSH URL keys)")
+		if changed, _ := migrate.MigrateProjectFiles(cwd); changed {
+			msg.Info("ℹ️  Renamed boss.json/boss-lock.json → bossy.json/bossy-lock.json")
+		}
+		if changed, _ := migrate.MigrateBossJSON(filepath.Join(cwd, consts.FilePackage)); changed {
+			msg.Info("ℹ️  Migrated " + consts.FilePackage + " (:ssh suffix → SSH URL keys)")
 		}
 	}
 }

@@ -16,6 +16,8 @@ func MigrateHome(home string) (bool, error) {
 	legacy := filepath.Join(home, ".boss")
 	target := filepath.Join(home, ".bossy")
 	if _, err := os.Stat(target); err == nil {
+		// Target exists — still rename the legacy config file inside it if present.
+		_, _ = RenameIfMissing(filepath.Join(target, "boss.cfg.json"), filepath.Join(target, "bossy.cfg.json"))
 		return false, nil
 	}
 	if _, err := os.Stat(legacy); os.IsNotExist(err) {
@@ -24,7 +26,49 @@ func MigrateHome(home string) (bool, error) {
 	if err := copyTree(legacy, target); err != nil {
 		return false, err
 	}
+	// After copy, rename the config file to the new name.
+	_, _ = RenameIfMissing(filepath.Join(target, "boss.cfg.json"), filepath.Join(target, "bossy.cfg.json"))
 	return true, nil
+}
+
+// RenameIfMissing renames src → dst when src exists and dst does not. Returns
+// true if a rename occurred. No-op (returns false, nil) otherwise.
+func RenameIfMissing(src, dst string) (bool, error) {
+	if _, err := os.Stat(dst); err == nil {
+		return false, nil
+	}
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	if err := os.Rename(src, dst); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// MigrateProjectFiles renames legacy project files in dir to their bossy-* names:
+//   - boss.json      → bossy.json
+//   - boss-lock.json → bossy-lock.json
+//
+// Each rename only happens if the legacy file exists and the new one does not.
+// Returns true if anything was renamed.
+func MigrateProjectFiles(dir string) (bool, error) {
+	changed := false
+	for _, pair := range [...][2]string{
+		{"boss.json", "bossy.json"},
+		{"boss-lock.json", "bossy-lock.json"},
+	} {
+		renamed, err := RenameIfMissing(filepath.Join(dir, pair[0]), filepath.Join(dir, pair[1]))
+		if err != nil {
+			return changed, err
+		}
+		if renamed {
+			changed = true
+		}
+	}
+	return changed, nil
 }
 
 func copyTree(src, dst string) error {
@@ -59,8 +103,8 @@ func copyTree(src, dst string) error {
 }
 
 // MigrateBossJSON rewrites legacy `:ssh` version-suffix entries in a
-// boss.json file to canonical SSH-form keys. Returns true if the file
-// was modified. Idempotent.
+// bossy.json (or legacy boss.json) file to canonical SSH-form keys. Returns
+// true if the file was modified. Idempotent.
 func MigrateBossJSON(path string) (bool, error) {
 	raw, err := os.ReadFile(path) // #nosec G304
 	if err != nil {

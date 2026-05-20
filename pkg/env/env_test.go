@@ -97,7 +97,7 @@ func TestGetCacheDir(t *testing.T) {
 func TestGetBossFile(t *testing.T) {
 	result := env.GetBossFile()
 
-	// Should end with boss.json
+	// Should end with bossy.json
 	if !strings.HasSuffix(result, consts.FilePackage) {
 		t.Errorf("GetBossFile() = %q, should end with %q", result, consts.FilePackage)
 	}

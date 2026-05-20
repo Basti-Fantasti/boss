@@ -36,7 +36,7 @@ func InstallModules(options InstallOptions) {
 	pkg, err := pkgmanager.LoadPackage()
 	if err != nil {
 		if os.IsNotExist(err) {
-			msg.Die("❌ 'boss.json' not exists in " + env.GetCurrentDir())
+			msg.Die("❌ 'bossy.json' not exists in " + env.GetCurrentDir())
 		} else {
 			msg.Die("❌ Fail on open dependencies file: %s", err)
 		}

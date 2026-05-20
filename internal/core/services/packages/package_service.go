@@ -7,6 +7,7 @@ import (
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/core/ports"
+	"github.com/basti-fantasti/bossy/pkg/consts"
 	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
@@ -24,9 +25,10 @@ func NewPackageService(packageRepo ports.PackageRepository, lockRepo ports.LockR
 	}
 }
 
-// LoadCurrent loads the current project's package file (boss.json).
+// LoadCurrent loads the current project's package file (bossy.json, or the
+// legacy boss.json if bossy.json is absent).
 func (s *PackageService) LoadCurrent() (*domain.Package, error) {
-	bossFile := env.GetBossFile()
+	bossFile := s.resolvePackagePath(env.GetBossFile())
 
 	if !s.packageRepo.Exists(bossFile) {
 		// Return empty package if file doesn't exist
@@ -44,15 +46,35 @@ func (s *PackageService) LoadCurrent() (*domain.Package, error) {
 	return pkg, nil
 }
 
-// Load loads a package from a specific path.
+// Load loads a package from a specific path. If the path points at the
+// canonical bossy.json but only the legacy boss.json exists in the same
+// directory, the legacy file is loaded transparently.
 func (s *PackageService) Load(packagePath string) (*domain.Package, error) {
-	pkg, err := s.packageRepo.Load(packagePath)
+	resolved := s.resolvePackagePath(packagePath)
+	pkg, err := s.packageRepo.Load(resolved)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load package from %s: %w", packagePath, err)
+		return nil, fmt.Errorf("failed to load package from %s: %w", resolved, err)
 	}
 
-	pkg.Lock = s.loadOrCreateLock(packagePath)
+	pkg.Lock = s.loadOrCreateLock(resolved)
 	return pkg, nil
+}
+
+// resolvePackagePath returns packagePath when it exists, otherwise falls back
+// to a legacy boss.json sibling. Returns the original path when neither
+// exists, so callers can produce a meaningful not-found error.
+func (s *PackageService) resolvePackagePath(packagePath string) string {
+	if filepath.Base(packagePath) != consts.FilePackage {
+		return packagePath
+	}
+	if s.packageRepo.Exists(packagePath) {
+		return packagePath
+	}
+	legacy := filepath.Join(filepath.Dir(packagePath), consts.FilePackageLegacy)
+	if s.packageRepo.Exists(legacy) {
+		return legacy
+	}
+	return packagePath
 }
 
 // Save saves a package to a specific path.

@@ -49,7 +49,7 @@ func updateWithSelect() {
 	pkg, err := pkgmanager.LoadPackage()
 	if err != nil {
 		if os.IsNotExist(err) {
-			msg.Die("boss.json not exists in " + env.GetCurrentDir())
+			msg.Die("bossy.json not exists in " + env.GetCurrentDir())
 		} else {
 			msg.Die("Fail on open dependencies file: %s", err)
 		}
@@ -57,7 +57,7 @@ func updateWithSelect() {
 
 	deps := pkg.GetParsedDependencies()
 	if len(deps) == 0 {
-		msg.Info("No dependencies found in boss.json")
+		msg.Info("No dependencies found in bossy.json")
 		return
 	}
 

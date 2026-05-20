@@ -236,6 +236,6 @@ func reportNoBossJSON(trackerPtr *BuildTracker, depName string) {
 	if trackerPtr.IsEnabled() {
 		trackerPtr.SetSkipped(depName, consts.StatusMsgNoBossJSON)
 	} else {
-		msg.Info("  ⏭️ %s has no boss.json", depName)
+		msg.Info("  ⏭️ %s has no bossy.json", depName)
 	}
 }

@@ -4,8 +4,10 @@ import "path/filepath"
 
 // File constants define standard file names and extensions used by Boss.
 const (
-	FilePackage        = "boss.json"
-	FilePackageLock    = "boss-lock.json"
+	FilePackage        = "bossy.json"
+	FilePackageLock    = "bossy-lock.json"
+	FilePackageLegacy  = "boss.json"      // pre-bossy filename, migrated on startup
+	FilePackageLockMid = "boss-lock.json" // pre-bossy lockfile, migrated on startup
 	FileBplOrder       = "bpl_order.txt"
 	FileExtensionBpl   = ".bpl"
 	FileExtensionDcp   = ".dcp"
@@ -28,7 +30,8 @@ const (
 	DcpFolder string = ".dcp"
 	DcuFolder string = ".dcu"
 
-	BossConfigFile = "boss.cfg.json"
+	BossConfigFile       = "bossy.cfg.json"
+	BossConfigFileLegacy = "boss.cfg.json" // pre-bossy filename, migrated on startup
 
 	MinimalDependencyVersion string = ">0.0.0"
 
@@ -64,7 +67,7 @@ const (
 	StatusMsgAlreadyInstalled = "already installed"
 	StatusMsgResolvingVer     = "resolving version"
 	StatusMsgNoProjects       = "no projects"
-	StatusMsgNoBossJSON       = "no boss.json"
+	StatusMsgNoBossJSON       = "no bossy.json"
 	StatusMsgBuildError       = "build error"
 	StatusMsgAlreadyUpToDate  = "boss is already up to date"
 

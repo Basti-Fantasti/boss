@@ -1,4 +1,4 @@
-// Package scripts provides functionality for running custom scripts defined in boss.json.
+// Package scripts provides functionality for running custom scripts defined in bossy.json.
 // It executes shell commands and captures their output for display.
 package scripts
 

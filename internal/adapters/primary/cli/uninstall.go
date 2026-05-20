@@ -20,16 +20,16 @@ func uninstallCmdRegister(root *cobra.Command) {
 	var uninstallCmd = &cobra.Command{
 		Use:     "uninstall",
 		Short:   "Uninstall a dependency",
-		Long:    "This uninstalls a package, completely removing everything boss installed on its behalf",
+		Long:    "This uninstalls a package, completely removing everything bossy installed on its behalf",
 		Aliases: []string{"remove", "rm", "r", "un", "unlink"},
 		Example: `  Uninstall a package:
-  boss uninstall <pkg>
+  bossy uninstall <pkg>
 
-  Uninstall a package without removing it from the boss.json file:
-  boss uninstall <pkg> --no-save
+  Uninstall a package without removing it from the bossy.json file:
+  bossy uninstall <pkg> --no-save
 
   Select multiple packages to uninstall:
-  boss uninstall --select`,
+  bossy uninstall --select`,
 		Run: func(_ *cobra.Command, args []string) {
 			if selectMode {
 				uninstallWithSelect(noSaveUninstall)
@@ -44,7 +44,7 @@ func uninstallCmdRegister(root *cobra.Command) {
 		&noSaveUninstall,
 		"no-save",
 		false,
-		"package will not be removed from your boss.json file",
+		"package will not be removed from your bossy.json file",
 	)
 	uninstallCmd.Flags().BoolVarP(&selectMode, "select", "s", false, "select dependencies to uninstall")
 }
@@ -54,7 +54,7 @@ func uninstallWithSelect(noSave bool) {
 	pkg, err := pkgmanager.LoadPackage()
 	if err != nil {
 		if os.IsNotExist(err) {
-			msg.Die("boss.json not exists in " + env.GetCurrentDir())
+			msg.Die("bossy.json not exists in " + env.GetCurrentDir())
 		} else {
 			msg.Die("Fail on open dependencies file: %s", err)
 		}
@@ -62,7 +62,7 @@ func uninstallWithSelect(noSave bool) {
 
 	deps := pkg.GetParsedDependencies()
 	if len(deps) == 0 {
-		msg.Info("No dependencies found in boss.json")
+		msg.Info("No dependencies found in bossy.json")
 		return
 	}
 

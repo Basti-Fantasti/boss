@@ -13,8 +13,10 @@ func TestConstants_FileNames(t *testing.T) {
 		constant string
 		expected string
 	}{
-		{"FilePackage", consts.FilePackage, "boss.json"},
-		{"FilePackageLock", consts.FilePackageLock, "boss-lock.json"},
+		{"FilePackage", consts.FilePackage, "bossy.json"},
+		{"FilePackageLock", consts.FilePackageLock, "bossy-lock.json"},
+		{"FilePackageLegacy", consts.FilePackageLegacy, "boss.json"},
+		{"FilePackageLockMid", consts.FilePackageLockMid, "boss-lock.json"},
 		{"FileBplOrder", consts.FileBplOrder, "bpl_order.txt"},
 		{"FilePackageLockOld", consts.FilePackageLockOld, "boss.lock"},
 	}
@@ -95,8 +97,11 @@ func TestConstants_EnvFolders(t *testing.T) {
 }
 
 func TestConstants_Config(t *testing.T) {
-	if consts.BossConfigFile != "boss.cfg.json" {
-		t.Errorf("BossConfigFile = %q, want %q", consts.BossConfigFile, "boss.cfg.json")
+	if consts.BossConfigFile != "bossy.cfg.json" {
+		t.Errorf("BossConfigFile = %q, want %q", consts.BossConfigFile, "bossy.cfg.json")
+	}
+	if consts.BossConfigFileLegacy != "boss.cfg.json" {
+		t.Errorf("BossConfigFileLegacy = %q, want %q", consts.BossConfigFileLegacy, "boss.cfg.json")
 	}
 
 	if consts.MinimalDependencyVersion != ">0.0.0" {

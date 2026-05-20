@@ -23,8 +23,62 @@ func TestMigrateHome_Copies(t *testing.T) {
 	if !moved {
 		t.Fatal("expected migration to run")
 	}
-	if _, err := os.Stat(filepath.Join(home, ".bossy", "boss.cfg.json")); err != nil {
-		t.Fatalf("expected file copied to .bossy: %v", err)
+	if _, err := os.Stat(filepath.Join(home, ".bossy", "bossy.cfg.json")); err != nil {
+		t.Fatalf("expected file copied & renamed to .bossy/bossy.cfg.json: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".bossy", "boss.cfg.json")); !os.IsNotExist(err) {
+		t.Fatalf("expected legacy boss.cfg.json to be removed, stat err=%v", err)
+	}
+}
+
+func TestMigrateProjectFiles_RenamesBothFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "boss.json"), []byte(`{}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "boss-lock.json"), []byte(`{}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := MigrateProjectFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed {
+		t.Fatal("expected rename to occur")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "bossy.json")); err != nil {
+		t.Errorf("bossy.json missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "bossy-lock.json")); err != nil {
+		t.Errorf("bossy-lock.json missing: %v", err)
+	}
+}
+
+func TestMigrateProjectFiles_NoLegacy(t *testing.T) {
+	dir := t.TempDir()
+	changed, err := MigrateProjectFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed {
+		t.Fatal("expected no-op when legacy files absent")
+	}
+}
+
+func TestMigrateProjectFiles_NewExistsTakesPrecedence(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "boss.json"), []byte(`{"legacy":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "bossy.json"), []byte(`{"new":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := MigrateProjectFiles(dir); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := os.ReadFile(filepath.Join(dir, "bossy.json"))
+	if !contains(string(out), `"new":true`) {
+		t.Errorf("bossy.json must not be overwritten by legacy: %s", out)
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Package represents the boss.json file structure.
+// Package represents the bossy.json file structure.
 // This is a pure domain entity containing only business data and logic.
 // Use PackageRepository (ports.PackageRepository) for persistence operations.
 type Package struct {
@@ -24,13 +24,13 @@ type Package struct {
 	Lock         PackageLock       `json:"-"`
 }
 
-// PackageEngines represents the engines configuration in boss.json.
+// PackageEngines represents the engines configuration in bossy.json.
 type PackageEngines struct {
 	Compiler  string   `json:"compiler,omitempty"`
 	Platforms []string `json:"platforms,omitempty"`
 }
 
-// PackageToolchain represents the toolchain configuration in boss.json.
+// PackageToolchain represents the toolchain configuration in bossy.json.
 type PackageToolchain struct {
 	Compiler string `json:"compiler,omitempty"`
 	Platform string `json:"platform,omitempty"`

@@ -52,7 +52,10 @@ func newInstallContext(config env.ConfigProvider, pkg *domain.Package, options I
 	requestedDeps := make(map[string]bool)
 	if len(options.Args) > 0 {
 		for _, arg := range options.Args {
-			normalized := ParseDependency(arg)
+			normalized, ok := NormalizeDepKey(arg)
+			if !ok {
+				normalized = ParseDependency(arg)
+			}
 			requestedDeps[normalized] = true
 		}
 	}
@@ -168,7 +171,10 @@ func collectDependenciesToInstall(pkg *domain.Package, args []string) []domain.D
 
 	var filtered []domain.Dependency
 	for _, arg := range args {
-		normalized := ParseDependency(arg)
+		normalized, ok := NormalizeDepKey(arg)
+		if !ok {
+			normalized = ParseDependency(arg)
+		}
 		for _, dep := range allDeps {
 			if dep.Repository == normalized {
 				filtered = append(filtered, dep)
@@ -616,7 +622,7 @@ func (ic *installContext) getVersionSemantic(
 
 func (ic *installContext) verifyDependencyCompatibility(dep domain.Dependency) (string, error) {
 	depPath := filepath.Join(ic.modulesDir, dep.Name())
-	depPkg, err := pkgmanager.LoadPackageOther(filepath.Join(depPath, "boss.json"))
+	depPkg, err := pkgmanager.LoadPackageOther(filepath.Join(depPath, consts.FilePackage))
 	if err != nil {
 		return "", err
 	}

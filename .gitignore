@@ -24,10 +24,10 @@ tmp/
 
 # End of https://www.gitignore.io/api/go
 
-# Boss
+# Bossy
 /modules
-boss-lock.json
-boss.json
+bossy-lock.json
+bossy.json
 
 # Lazarus project
 /lib

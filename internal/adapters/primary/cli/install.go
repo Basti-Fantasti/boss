@@ -24,7 +24,7 @@ func installCmdRegister(root *cobra.Command) {
   Add a new version-specific dependency:
   boss install <pkg>@<version>
 
-  Install a dependency without add it from the boss.json file:
+  Install a dependency without add it from the bossy.json file:
   boss install <pkg> --no-save
 
   Install using a specific compiler version:

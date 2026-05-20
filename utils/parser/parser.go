@@ -1,5 +1,5 @@
 // Package parser provides JSON marshaling utilities with safe encoding support.
-// It handles JSON encoding with proper character escaping for boss.json files.
+// It handles JSON encoding with proper character escaping for bossy.json files.
 package parser
 
 import (

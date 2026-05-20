@@ -172,10 +172,15 @@ func CheckoutNative(dep domain.Dependency, decision auth.Decision, referenceName
 		return err
 	}
 	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
+	// doClone/getWrapperFetch leave dirModule without a .git pointer; restore it
+	// so the git binary can locate the separate gitdir in the cache.
+	writeDotGitFile(dep)
 	//nolint:gosec,nolintlint // Git command with controlled repository reference
 	cmd := exec.Command("git", "checkout", "-f", referenceName.Short()) // #nosec G204 -- Controlled git checkout command
 	cmd.Dir = dirModule
-	return runCommand(cmd)
+	err := runCommand(cmd)
+	_ = os.Remove(filepath.Join(dirModule, ".git"))
+	return err
 }
 
 func PullNative(dep domain.Dependency, decision auth.Decision) error {
@@ -183,9 +188,12 @@ func PullNative(dep domain.Dependency, decision auth.Decision) error {
 		return err
 	}
 	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
+	writeDotGitFile(dep)
 	cmd := exec.Command("git", "pull", "--force")
 	cmd.Dir = dirModule
-	return runCommand(cmd)
+	err := runCommand(cmd)
+	_ = os.Remove(filepath.Join(dirModule, ".git"))
+	return err
 }
 
 func runCommand(cmd *exec.Cmd) error {

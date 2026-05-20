@@ -11,6 +11,7 @@ import (
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/infra"
+	"github.com/basti-fantasti/bossy/pkg/consts"
 )
 
 // MockFileSystem implements infra.FileSystem for testing.
@@ -183,13 +184,14 @@ func TestFileLockRepository_MigrateOldFormat_FileExists(t *testing.T) {
 
 	repo := NewFileLockRepository(fs)
 
-	err := repo.MigrateOldFormat("/project/boss.lock", "/project/boss-lock.json")
+	// newPath arg is only used for its directory; the actual target is consts.FilePackageLock.
+	err := repo.MigrateOldFormat("/project/boss.lock", "/project/"+consts.FilePackageLock)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if _, ok := fs.files["/project/boss-lock.json"]; !ok {
+	if _, ok := fs.files["/project/"+consts.FilePackageLock]; !ok {
 		t.Error("expected file to be renamed to new path")
 	}
 
