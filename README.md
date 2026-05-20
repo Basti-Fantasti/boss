@@ -38,7 +38,7 @@ Or you can use the following the steps below:
 
 ### > Init
 
-Initialize a new project and create a `boss.json` file. Add `-q` or `--quiet` to skip interactive prompts and use default values.
+Initialize a new project and create a `bossy.json` file. Add `-q` or `--quiet` to skip interactive prompts and use default values.
 
 ```shell
 bossy init
@@ -125,7 +125,7 @@ bossy dependencies <package> -v
 
 ### > Run
 
-Execute a custom script defined in your `boss.json` file. Scripts are defined in the `scripts` section:
+Execute a custom script defined in your `bossy.json` file. Scripts are defined in the `scripts` section:
 
 ```json
 {
@@ -180,7 +180,7 @@ bossy config git protocol github.com https
 
 ### > Dependency URL forms
 
-In `boss.json` and on the `bossy install` command line, you can use any of:
+In `bossy.json` and on the `bossy install` command line, you can use any of:
 
 - Bare name → defaults to `github.com/hashload/<name>` (e.g. `horse`).
 - `host/owner/repo`
@@ -299,9 +299,9 @@ BOSS_GIT_SHALLOW=1 bossy install
 
 ### > Project Toolchain
 
-You can also specify the required compiler version and platform in your project's `boss.json` file. This ensures that everyone working on the project uses the correct toolchain.
+You can also specify the required compiler version and platform in your project's `bossy.json` file. This ensures that everyone working on the project uses the correct toolchain.
 
-Add a `toolchain` section to your `boss.json`:
+Add a `toolchain` section to your `bossy.json`:
 
 ```json
 {
@@ -331,7 +331,7 @@ bossy install -g boss-ide
 
 ## Using [semantic versioning](https://semver.org/) to specify update types your package can accept
 
-You can specify which update types your package can accept from dependencies in your package's boss.json file.
+You can specify which update types your package can accept from dependencies in your package's bossy.json file.
 
 For example, to specify acceptable version ranges up to 1.0.4, use the following syntax:
 
@@ -339,9 +339,9 @@ For example, to specify acceptable version ranges up to 1.0.4, use the following
 - Minor releases: 1 or 1.x or ^1.0.4
 - Major releases: \* or x
 
-## boss.json File Format
+## bossy.json File Format
 
-The `boss.json` file is the manifest for your Delphi/Lazarus project. It contains metadata, dependencies, build configuration, and custom scripts.
+The `bossy.json` file is the manifest for your Delphi/Lazarus project. It contains metadata, dependencies, build configuration, and custom scripts.
 
 ### Complete Structure
 
@@ -496,9 +496,9 @@ Here's a comprehensive example showing all available fields:
   - `path`: Explicit path to the compiler (optional)
   - `strict`: If `true`, fails if the exact version is not found (default: `false`)
 
-### Minimal boss.json
+### Minimal bossy.json
 
-The minimal valid `boss.json` file:
+The minimal valid `bossy.json` file:
 
 ```json
 {
@@ -507,9 +507,9 @@ The minimal valid `boss.json` file:
 }
 ```
 
-### Creating a new boss.json
+### Creating a new bossy.json
 
-Use `bossy init` to create a new `boss.json` interactively:
+Use `bossy init` to create a new `bossy.json` interactively:
 
 ```sh
 bossy init

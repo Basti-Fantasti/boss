@@ -1,4 +1,4 @@
-// Package lock provides functionality for managing package lock files (boss.lock.json).
+// Package lock provides functionality for managing package lock files (bossy-lock.json).
 // It tracks installed dependencies and their versions to ensure consistent installations.
 package lock
 

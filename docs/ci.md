@@ -31,7 +31,7 @@ When `bossy install` resolves a dependency whose host matches
 `CI_SERVER_HOST`, it transparently rewrites the clone URL to
 `https://gitlab-ci-token:${CI_JOB_TOKEN}@<host>/<path>` and clones over
 HTTPS. This applies regardless of how the dependency was declared in
-`boss.json`:
+`bossy.json`:
 
 | Declared as | In CI, becomes |
 |---|---|
@@ -39,7 +39,7 @@ HTTPS. This applies regardless of how the dependency was declared in
 | `gitlab.mydomain.com/foo/bar` | `https://gitlab-ci-token:TOKEN@gitlab.mydomain.com/foo/bar` |
 | `https://gitlab.mydomain.com/foo/bar` | `https://gitlab-ci-token:TOKEN@gitlab.mydomain.com/foo/bar` |
 
-So the same `boss.json` works for local SSH development and CI HTTPS
+So the same `bossy.json` works for local SSH development and CI HTTPS
 without any branching logic.
 
 Public dependencies (e.g. `github.com/HashLoad/horse`) clone over plain
