@@ -72,7 +72,11 @@ func (s *LockService) NeedUpdate(lock *domain.PackageLock, dep domain.Dependency
 // version is written unconditionally; commit is only written when non-empty so
 // callers that don't know the resolved SHA (e.g. mid-resolution callers) cannot
 // accidentally clear a previously captured commit.
-func (s *LockService) AddDependency(lock *domain.PackageLock, dep domain.Dependency, version, commit, modulesDir string) {
+func (s *LockService) AddDependency(
+	lock *domain.PackageLock,
+	dep domain.Dependency,
+	version, commit, modulesDir string,
+) {
 	depDir := filepath.Join(modulesDir, dep.Name())
 	hash := utils.HashDir(depDir)
 
