@@ -653,7 +653,11 @@ func (ic *installContext) getVersionSemantic(
 
 func (ic *installContext) verifyDependencyCompatibility(dep domain.Dependency) (string, error) {
 	depPath := filepath.Join(ic.modulesDir, dep.Name())
-	depPkg, err := pkgmanager.LoadPackageOther(filepath.Join(depPath, consts.FilePackage))
+	bossFile := filepath.Join(depPath, consts.FilePackage)
+	if _, statErr := os.Stat(bossFile); os.IsNotExist(statErr) {
+		return "", nil
+	}
+	depPkg, err := pkgmanager.LoadPackageOther(bossFile)
 	if err != nil {
 		return "", err
 	}
