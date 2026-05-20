@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -179,23 +180,30 @@ func TestFileLockRepository_Save_Success(t *testing.T) {
 }
 
 func TestFileLockRepository_MigrateOldFormat_FileExists(t *testing.T) {
+	// Use filepath.Join so the mock keys match what production MigrateOldFormat
+	// produces via filepath.Join on the host OS (forward slashes on Unix,
+	// backslashes on Windows).
+	dir := filepath.Join("/", "project")
+	oldPath := filepath.Join(dir, consts.FilePackageLockOld)
+	newPath := filepath.Join(dir, consts.FilePackageLock)
+
 	fs := NewMockFileSystem()
-	fs.files["/project/boss.lock"] = []byte(`{"hash":"oldhash"}`)
+	fs.files[oldPath] = []byte(`{"hash":"oldhash"}`)
 
 	repo := NewFileLockRepository(fs)
 
 	// newPath arg is only used for its directory; the actual target is consts.FilePackageLock.
-	err := repo.MigrateOldFormat("/project/boss.lock", "/project/"+consts.FilePackageLock)
+	err := repo.MigrateOldFormat(oldPath, newPath)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if _, ok := fs.files["/project/"+consts.FilePackageLock]; !ok {
+	if _, ok := fs.files[newPath]; !ok {
 		t.Error("expected file to be renamed to new path")
 	}
 
-	if _, ok := fs.files["/project/boss.lock"]; ok {
+	if _, ok := fs.files[oldPath]; ok {
 		t.Error("expected old file to be removed")
 	}
 }
