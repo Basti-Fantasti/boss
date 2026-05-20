@@ -45,6 +45,31 @@ without any branching logic.
 Public dependencies (e.g. `github.com/HashLoad/horse`) clone over plain
 HTTPS — `CI_JOB_TOKEN` is not used for them.
 
+## Reproducible builds
+
+Commit `bossy-lock.json` alongside `bossy.json`. The lock records the
+resolved git commit SHA for every dependency, so:
+
+- In CI, run `bossy install` (not `bossy update`). `install` consumes the
+  lock and checks out each dependency at the exact pinned commit.
+- Force-pushed upstream tags do not change what CI installs — the SHA in
+  the lock is immutable.
+- Internal libraries that don't tag releases (branch-only workflows) are
+  still reproducibly buildable, because the lock pins the branch tip's
+  SHA at the moment `bossy update` was last run.
+
+```yaml
+build:
+  image: registry.mydomain.com/devops/delphi-bossy:latest
+  script:
+    - bossy install      # uses bossy-lock.json — reproducible
+    - bossy run build
+```
+
+> Warning: `bossy update` re-resolves every constraint against the remote
+> and rewrites the lock. Run it locally, intentionally, when you want to
+> pick up new upstream versions — never as part of a normal CI build.
+
 ## Troubleshooting
 
 ### `403 Forbidden` or "remote rejected" on a real repo

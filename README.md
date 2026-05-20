@@ -297,6 +297,42 @@ bossy install
 BOSS_GIT_SHALLOW=1 bossy install
 ```
 
+### > Host Aliases
+
+Define short aliases for git hosts so dependencies can be referenced as
+`<alias>:<path>` on the install command line. Useful when a long internal
+hostname clutters `bossy install` invocations.
+
+```sh
+# Set an alias
+bossy config alias gtr gitlab.mydomain.com
+
+# List configured aliases
+bossy config alias --list
+
+# Remove an alias
+bossy config alias --unset gtr
+```
+
+With the alias `gtr → gitlab.mydomain.com` configured, the following are equivalent:
+
+```sh
+bossy install gtr:devops/some-lib
+bossy install gitlab.mydomain.com/devops/some-lib
+```
+
+The expansion respects the host's configured protocol
+(`bossy config git protocol <host> ssh|https`):
+
+- If the host is pinned to `ssh`, `gtr:devops/some-lib` expands to
+  `git@gitlab.mydomain.com:devops/some-lib`.
+- Otherwise it expands to `gitlab.mydomain.com/devops/some-lib` (cloned over HTTPS).
+
+Aliases are a CLI convenience only — they are never written into `bossy.json`.
+Only the canonical `git@host:path` or `host/path` form is stored, so the
+manifest stays portable across machines that may not share the same alias
+config. The names `git`, `http`, `https`, and `ssh` are reserved.
+
 ### > Project Toolchain
 
 You can also specify the required compiler version and platform in your project's `bossy.json` file. This ensures that everyone working on the project uses the correct toolchain.
@@ -338,6 +374,32 @@ For example, to specify acceptable version ranges up to 1.0.4, use the following
 - Patch releases: 1.0 or 1.0.x or ~1.0.4
 - Minor releases: 1 or 1.x or ^1.0.4
 - Major releases: \* or x
+
+### Pinning to a specific commit
+
+In addition to tag-based constraints, a dependency version can be a raw git
+commit SHA (7-40 hex characters). The dependency is then checked out at exactly
+that commit:
+
+```json
+{
+  "dependencies": {
+    "git@gitlab.example.com:foo/bar": "a1b2c3d",
+    "github.com/HashLoad/horse": "3f9e2c1a4b5d6e7f8091a2b3c4d5e6f70a1b2c3d"
+  }
+}
+```
+
+After every install, the resolved commit SHA is recorded in `bossy-lock.json`
+under a `commit` field per dependency. On subsequent runs:
+
+- `bossy install` reuses the SHA from the lock file, so builds are reproducible
+  even if upstream tags move or branches advance.
+- `bossy update` ignores the lock, re-resolves each dependency's version
+  constraint against the remote, and rewrites the lock with the new SHAs.
+
+Commit `bossy-lock.json` to source control alongside `bossy.json` if you want
+reproducible CI builds. See [`docs/ci.md`](docs/ci.md).
 
 ## bossy.json File Format
 
