@@ -217,6 +217,38 @@ func TestLockService_AddDependency_StoresCommit(t *testing.T) {
 	}
 }
 
+// TestLockService_AddDependency_EmptyCommitPreservesExisting verifies the
+// asymmetric guard: calling AddDependency with commit == "" on an entry that
+// already has a Commit must NOT clear it. Version, by contrast, is always
+// overwritten.
+func TestLockService_AddDependency_EmptyCommitPreservesExisting(t *testing.T) {
+	repo := NewMockLockRepository()
+	fs := NewMockFileSystem()
+	svc := NewLockService(repo, fs)
+
+	const sha = "abcdef0123456789abcdef0123456789abcdef01"
+	dep := domain.ParseDependency("github.com/foo/bar", "^1.0.0")
+	lock := &domain.PackageLock{
+		Installed: map[string]domain.LockedDependency{
+			dep.GetKey(): {
+				Name:    "bar",
+				Version: "1.0.0",
+				Commit:  sha,
+			},
+		},
+	}
+
+	svc.AddDependency(lock, dep, "1.0.1", "", t.TempDir())
+
+	got := lock.Installed[dep.GetKey()]
+	if got.Commit != sha {
+		t.Errorf("Commit = %q, want preserved %q", got.Commit, sha)
+	}
+	if got.Version != "1.0.1" {
+		t.Errorf("Version = %q, want overwritten to %q", got.Version, "1.0.1")
+	}
+}
+
 func TestLockService_Save(t *testing.T) {
 	repo := NewMockLockRepository()
 	fs := NewMockFileSystem()

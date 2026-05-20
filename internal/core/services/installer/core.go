@@ -12,6 +12,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	goGit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+
 	"github.com/basti-fantasti/bossy/internal/adapters/secondary/filesystem"
 	git "github.com/basti-fantasti/bossy/internal/adapters/secondary/git"
 	"github.com/basti-fantasti/bossy/internal/adapters/secondary/repository"
@@ -518,24 +519,47 @@ func (ic *installContext) getReferenceName(
 
 func (ic *installContext) checkoutAndUpdate(
 	dep domain.Dependency,
-	_ *goGit.Repository,
-	referenceName plumbing.ReferenceName) error {
-	if !ic.progress.IsEnabled() {
-		msg.Debug("  🔍 Checking out %s to %s", dep.Name(), referenceName.Short())
+	repository *goGit.Repository,
+	referenceName plumbing.ReferenceName,
+) error {
+	isHashRef := !referenceName.IsTag() && !referenceName.IsBranch() && !referenceName.IsRemote()
+	var err error
+	//nolint:nestif // Two-branch dispatch on hash vs ref with shared progress reporting
+	if isHashRef {
+		if !ic.progress.IsEnabled() {
+			short := referenceName.Short()
+			if len(short) > 7 {
+				short = short[:7]
+			}
+			msg.Debug("  📌 %s pinned to %s", dep.Name(), short)
+		}
+		err = git.CheckoutHash(ic.config, dep, plumbing.NewHash(referenceName.Short()))
+	} else {
+		if !ic.progress.IsEnabled() {
+			msg.Debug("  🔍 Checking out %s to %s", dep.Name(), referenceName.Short())
+		}
+		err = git.Checkout(ic.config, dep, referenceName)
 	}
-	err := git.Checkout(ic.config, dep, referenceName)
 
-	ic.lockSvc.AddDependency(ic.rootLocked, dep, referenceName.Short(), "", ic.modulesDir)
+	commit := ""
+	if head, headErr := repository.Head(); headErr == nil {
+		commit = head.Hash().String()
+	}
+	ic.lockSvc.AddDependency(ic.rootLocked, dep, referenceName.Short(), commit, ic.modulesDir)
 
 	if err != nil {
 		return err
+	}
+
+	// Skip pull on detached-HEAD checkouts — they're pinned.
+	if isHashRef {
+		return nil
 	}
 
 	if !ic.progress.IsEnabled() {
 		msg.Debug("  📥 Pulling latest changes for %s", dep.Name())
 	}
 	err = git.Pull(ic.config, dep)
-
 	if err != nil && !errors.Is(err, goGit.NoErrAlreadyUpToDate) {
 		warnMsg := fmt.Sprintf("Error on pull from dependency %s\n%s", dep.Repository, err)
 		if !ic.progress.IsEnabled() {
@@ -550,9 +574,16 @@ func (ic *installContext) getVersion(
 	dep domain.Dependency,
 	repository *goGit.Repository,
 ) *plumbing.Reference {
+	// Raw SHA in bossy.json — terminal, skip resolution.
+	if domain.IsGitSHA(dep.GetVersion()) {
+		return plumbing.NewHashReference(plumbing.HEAD, plumbing.NewHash(dep.GetVersion()))
+	}
+
 	if ic.useLockedVersion {
 		lockedDependency := ic.rootLocked.GetInstalled(dep)
-
+		if lockedDependency.Commit != "" {
+			return plumbing.NewHashReference(plumbing.HEAD, plumbing.NewHash(lockedDependency.Commit))
+		}
 		if tag := git.GetByTag(repository, lockedDependency.Version); tag != nil &&
 			lockedDependency.Version != dep.GetVersion() {
 			return tag

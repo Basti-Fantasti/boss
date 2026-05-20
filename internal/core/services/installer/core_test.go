@@ -4,6 +4,8 @@ package installer
 import (
 	"testing"
 
+	"github.com/go-git/go-git/v5/plumbing"
+
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 )
 
@@ -66,5 +68,62 @@ func TestAddWarning(t *testing.T) {
 
 	if ctx.warnings[0] != "Test warning" {
 		t.Errorf("Expected warning 'Test warning', got %q", ctx.warnings[0])
+	}
+}
+
+// TestGetVersion_RawSHAFastPath verifies that when bossy.json pins a dependency
+// to a raw 40-char SHA, getVersion returns a hash reference immediately without
+// touching the repository (we pass nil to enforce that).
+func TestGetVersion_RawSHAFastPath(t *testing.T) {
+	const sha = "0123456789abcdef0123456789abcdef01234567"
+
+	dep := domain.ParseDependency("github.com/example/repo", sha)
+	ctx := &installContext{
+		rootLocked: &domain.PackageLock{Installed: map[string]domain.LockedDependency{}},
+		warnings:   make([]string, 0),
+	}
+
+	ref := ctx.getVersion(dep, nil)
+	if ref == nil {
+		t.Fatalf("Expected non-nil reference for raw SHA, got nil")
+	}
+	if got := ref.Hash().String(); got != sha {
+		t.Errorf("Hash = %q, want %q", got, sha)
+	}
+	if ref.Name() != plumbing.HEAD {
+		t.Errorf("Name = %q, want HEAD", ref.Name())
+	}
+}
+
+// TestGetVersion_LockedCommitFastPath verifies that when useLockedVersion is set
+// and the lock entry has a Commit, getVersion returns a hash reference at that
+// commit. Passing nil for the repository proves we never query it.
+func TestGetVersion_LockedCommitFastPath(t *testing.T) {
+	const sha = "fedcba9876543210fedcba9876543210fedcba98"
+
+	dep := domain.ParseDependency("github.com/example/repo", "^1.0.0")
+	ctx := &installContext{
+		rootLocked: &domain.PackageLock{
+			Installed: map[string]domain.LockedDependency{
+				dep.GetKey(): {
+					Name:    "repo",
+					Version: "1.2.3",
+					Commit:  sha,
+				},
+			},
+		},
+		useLockedVersion: true,
+		warnings:         make([]string, 0),
+	}
+
+	ref := ctx.getVersion(dep, nil)
+	if ref == nil {
+		t.Fatalf("Expected non-nil reference for locked commit, got nil")
+	}
+	if got := ref.Hash().String(); got != sha {
+		t.Errorf("Hash = %q, want %q", got, sha)
+	}
+	if ref.Name() != plumbing.HEAD {
+		t.Errorf("Name = %q, want HEAD", ref.Name())
 	}
 }

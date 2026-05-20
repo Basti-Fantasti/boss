@@ -68,7 +68,10 @@ func (s *LockService) NeedUpdate(lock *domain.PackageLock, dep domain.Dependency
 	return false
 }
 
-// AddDependency adds a dependency to the lock with computed hash.
+// AddDependency adds (or updates) a dependency in the lock with computed hash.
+// version is written unconditionally; commit is only written when non-empty so
+// callers that don't know the resolved SHA (e.g. mid-resolution callers) cannot
+// accidentally clear a previously captured commit.
 func (s *LockService) AddDependency(lock *domain.PackageLock, dep domain.Dependency, version, commit, modulesDir string) {
 	depDir := filepath.Join(modulesDir, dep.Name())
 	hash := utils.HashDir(depDir)
