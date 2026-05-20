@@ -15,5 +15,6 @@ func RegisterConfigCommand(root *cobra.Command) {
 	root.AddCommand(configCmd)
 	delphiCmd(configCmd)
 	registryGitCmd(configCmd)
+	configCmd.AddCommand(aliasCmd())
 	RegisterCmd(configCmd)
 }

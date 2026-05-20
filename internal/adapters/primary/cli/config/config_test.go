@@ -54,7 +54,7 @@ func TestConfigSubcommands(t *testing.T) {
 		t.Fatal("Config command not found")
 	}
 
-	expectedSubcommands := []string{"delphi", "git"}
+	expectedSubcommands := []string{"delphi", "git", "alias <name> <host>"}
 	foundSubcommands := make(map[string]bool)
 
 	for _, cmd := range configCmd.Commands() {
