@@ -252,21 +252,28 @@ func runCommand(cmd *exec.Cmd) error {
 
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
-	cmd.Env = os.Environ()
+	// gitSafeEnv rather than os.Environ: doClone passes the remote URL as a
+	// command-line argument and the gitlab-ci auth layer bakes a CI job token
+	// into it, so an inherited GIT_TRACE would echo that token to stderr.
+	// GIT_TERMINAL_PROMPT=0 additionally keeps a clone or fetch against an
+	// unauthenticated host from blocking a non-interactive run forever.
+	cmd.Env = gitSafeEnv()
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("command failed: %w\nStderr: %s", err, stderrBuf.String())
+		return fmt.Errorf("command failed: %w\nStderr: %s", err, redactURLCredentials(stderrBuf.String()))
 	}
 
+	// Debug output is still output: it reaches the same logs the wrapped error
+	// does, so it is redacted on the same terms.
 	if stdoutBuf.Len() > 0 {
-		msg.Debug("Command stdout: %s", stdoutBuf.String())
+		msg.Debug("Command stdout: %s", redactURLCredentials(stdoutBuf.String()))
 	}
 	if stderrBuf.Len() > 0 {
-		msg.Debug("Command stderr: %s", stderrBuf.String())
+		msg.Debug("Command stderr: %s", redactURLCredentials(stderrBuf.String()))
 	}
 
 	return nil

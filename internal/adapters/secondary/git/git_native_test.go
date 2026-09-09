@@ -2,6 +2,7 @@
 package gitadapter
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -309,5 +310,35 @@ func TestFilterGitEnv_CaseInsensitive(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("entry %d: got %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+// TestRunCommand_ErrorRedactsCredentials locks the security property of the
+// shared command runner used by clone, fetch, checkout and submodule init.
+// doClone passes the remote URL as a command-line argument and the gitlab-ci
+// auth layer bakes a CI job token into that URL, so a failing clone must not
+// carry the token out in the returned error.
+//
+// GIT_TRACE is set deliberately: it makes git echo the full command line,
+// secret included, so the test covers both halves of the hardening — the
+// tracing switch must be stripped from the child environment, and whatever
+// still reaches stderr must be redacted before it is wrapped.
+func TestRunCommand_ErrorRedactsCredentials(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git binary not on PATH")
+	}
+	const secret = "SUPERSECRET123"
+	t.Setenv("GIT_TRACE", "1")
+
+	cmd := exec.Command("git", "ls-remote", "file://user:"+secret+"@/no/such/path")
+	err := runCommand(cmd)
+	if err == nil {
+		t.Fatal("expected runCommand to fail for a nonexistent repository")
+	}
+	if !strings.Contains(err.Error(), "command failed") {
+		t.Fatalf("expected a command failure, got: %v", err)
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Errorf("credential leaked into error: %v", err)
 	}
 }
