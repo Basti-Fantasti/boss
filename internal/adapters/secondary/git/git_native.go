@@ -150,6 +150,17 @@ func getWrapperFetch(dep domain.Dependency) error {
 		return err
 	}
 
+	// Repair caches cloned by an older bossy that passed --single-branch: their
+	// refspec is pinned to one branch, so `fetch --all` silently brings nothing
+	// for every other branch. Rewriting the refspec is idempotent and harmless
+	// on healthy caches.
+	cmdRefspec := exec.Command("git", "config", "remote.origin.fetch",
+		"+refs/heads/*:refs/remotes/origin/*")
+	cmdRefspec.Dir = dirModule
+	if err := runCommand(cmdRefspec); err != nil {
+		msg.Debug("Could not normalise refspec for %s: %s", dep.Repository, err)
+	}
+
 	cmd := exec.Command("git", "fetch", "--all")
 	cmd.Dir = dirModule
 
