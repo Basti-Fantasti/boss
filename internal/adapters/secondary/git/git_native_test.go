@@ -80,20 +80,36 @@ func TestRequireGitErrorContainsDependencyInfo(t *testing.T) {
 }
 
 // TestParseLsRemote verifies that ls-remote output is parsed into references
-// whose Short() names match what installer.getVersion compares against, and
-// that peeled tag entries are discarded.
+// whose Short() names match what installer.getVersion compares against, that
+// peeled tag entries are discarded in favour of the tag object, and that only
+// refs/heads/* and refs/tags/* entries with a full 40-hex SHA survive.
 func TestParseLsRemote(t *testing.T) {
+	const (
+		developSHA = "81a517be28652c5c25656102a7cf4d592450beeb"
+		mainSHA    = "c2b107ffbdc3246b1cb2696b722b39616621c878"
+		v100SHA    = "026988d4bf23b80ea67639de88b5e007a95831ee"
+		// v1.1.0 is an annotated tag: the tag object has its own SHA and the
+		// peeled entry points at the commit main also points at.
+		v110TagSHA = "5f0c9a1d3b7e2648f10ab9cd44e7f2b83c60d915"
+	)
+
 	out := "" +
-		"81a517be28652c5c25656102a7cf4d592450beeb\trefs/heads/develop\n" +
-		"c2b107ffbdc3246b1cb2696b722b39616621c878\trefs/heads/main\n" +
-		"026988d4bf23b80ea67639de88b5e007a95831ee\trefs/tags/v1.0.0\n" +
-		"c2b107ffbdc3246b1cb2696b722b39616621c878\trefs/tags/v1.1.0\n" +
-		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\trefs/tags/v1.1.0^{}\n"
+		developSHA + "\trefs/heads/develop\n" +
+		mainSHA + "\trefs/heads/main\n" +
+		v100SHA + "\trefs/tags/v1.0.0\n" +
+		v110TagSHA + "\trefs/tags/v1.1.0\n" +
+		mainSHA + "\trefs/tags/v1.1.0^{}\n" +
+		// Everything below must be rejected.
+		mainSHA + "\tHEAD\n" +
+		mainSHA + "\trefs/merge-requests/7/head\n" +
+		mainSHA + "\trefs/pull/12/head\n" +
+		"deadbeef\trefs/heads/bad\n" +
+		"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\trefs/heads/nonhex\n"
 
 	refs := parseLsRemote(out)
 
 	if len(refs) != 4 {
-		t.Fatalf("got %d refs, want 4 (peeled tag must be skipped)", len(refs))
+		t.Fatalf("got %d refs, want %d", len(refs), 4)
 	}
 
 	got := map[string]string{}
@@ -103,14 +119,30 @@ func TestParseLsRemote(t *testing.T) {
 
 	// Short() must yield "develop", not "origin/develop" — installer.getVersion
 	// compares against the bare branch name.
-	if got["develop"] != "81a517be28652c5c25656102a7cf4d592450beeb" {
-		t.Errorf("develop: got %q", got["develop"])
+	if got["develop"] != developSHA {
+		t.Errorf("develop: got %q, want %q", got["develop"], developSHA)
 	}
-	if got["v1.0.0"] != "026988d4bf23b80ea67639de88b5e007a95831ee" {
-		t.Errorf("v1.0.0: got %q", got["v1.0.0"])
+	if got["main"] != mainSHA {
+		t.Errorf("main: got %q, want %q", got["main"], mainSHA)
 	}
-	if _, ok := got["main"]; !ok {
-		t.Error("main ref missing")
+	if got["v1.0.0"] != v100SHA {
+		t.Errorf("v1.0.0: got %q, want %q", got["v1.0.0"], v100SHA)
+	}
+	// The tag object's own SHA must win; the peeled entry must not overwrite it.
+	if got["v1.1.0"] != v110TagSHA {
+		t.Errorf("v1.1.0: got %q, want %q", got["v1.1.0"], v110TagSHA)
+	}
+
+	for _, unwanted := range []string{
+		"HEAD",
+		"merge-requests/7/head",
+		"pull/12/head",
+		"bad",
+		"nonhex",
+	} {
+		if h, ok := got[unwanted]; ok {
+			t.Errorf("ref %q must not be returned: got %q, want absent", unwanted, h)
+		}
 	}
 }
 
@@ -119,9 +151,9 @@ func TestParseLsRemote_Garbage(t *testing.T) {
 	out := "not-a-ref-line\n\n   \nc2b107ffbdc3246b1cb2696b722b39616621c878\trefs/heads/main\n"
 	refs := parseLsRemote(out)
 	if len(refs) != 1 {
-		t.Fatalf("got %d refs, want 1", len(refs))
+		t.Fatalf("got %d refs, want %d", len(refs), 1)
 	}
 	if refs[0].Name().Short() != "main" {
-		t.Errorf("got %q, want main", refs[0].Name().Short())
+		t.Errorf("got %q, want %q", refs[0].Name().Short(), "main")
 	}
 }

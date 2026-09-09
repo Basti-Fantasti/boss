@@ -271,23 +271,55 @@ func runCommand(cmd *exec.Cmd) error {
 	return nil
 }
 
-// parseLsRemote turns `git ls-remote` output ("<sha>\t<refname>" per line)
-// into plumbing references. Peeled annotated-tag entries ("refs/tags/x^{}")
-// are skipped: the tag object itself is the ref bossy resolves against.
-// Malformed lines are skipped rather than treated as fatal — a partially
-// parseable listing is more useful than none.
-func parseLsRemote(out string) []*plumbing.Reference {
+// parseLsRemote turns `git ls-remote` stdout ("<sha>\t<refname>" per line) into
+// plumbing references. Only refs/heads/* and refs/tags/* entries carrying a
+// full 40-digit hex SHA are returned. Peeled annotated-tag entries
+// ("refs/tags/x^{}") are dropped: the tag object itself is the ref bossy
+// resolves against. Everything else is ignored — a bare HEAD line, the
+// server-advertised refs/pull/* and refs/merge-requests/* namespaces, and
+// --symref output, which arrives as three fields. Rejected lines are skipped
+// rather than treated as fatal: a partially parseable listing is more useful
+// than none.
+func parseLsRemote(stdout string) []*plumbing.Reference {
 	refs := make([]*plumbing.Reference, 0)
-	for _, line := range strings.Split(out, "\n") {
+	for _, line := range strings.Split(stdout, "\n") {
 		fields := strings.Fields(strings.TrimSpace(line))
 		if len(fields) != 2 {
 			continue
 		}
 		sha, name := fields[0], fields[1]
+		// Only real branches and tags. Server-advertised refs such as
+		// refs/pull/*, refs/merge-requests/* and a bare HEAD line all satisfy
+		// installer's isHashRef sentinel (!IsTag && !IsBranch && !IsRemote)
+		// and would be mistaken for a raw-SHA pin.
+		if !strings.HasPrefix(name, "refs/heads/") && !strings.HasPrefix(name, "refs/tags/") {
+			continue
+		}
 		if strings.HasSuffix(name, "^{}") {
+			continue
+		}
+		if !isFullHexSHA(sha) {
 			continue
 		}
 		refs = append(refs, plumbing.NewReferenceFromStrings(name, sha))
 	}
 	return refs
+}
+
+// isFullHexSHA reports whether s is exactly 40 lowercase-or-uppercase hex
+// digits. plumbing.NewHash silently zero-pads anything shorter, turning a
+// truncated SHA into a plausible-looking but wrong hash, so the length must be
+// checked before the string is handed to go-git.
+func isFullHexSHA(s string) bool {
+	if len(s) != 40 {
+		return false
+	}
+	for _, c := range s {
+		switch {
+		case c >= '0' && c <= '9', c >= 'a' && c <= 'f', c >= 'A' && c <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }
