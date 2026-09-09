@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
@@ -271,6 +272,48 @@ func runCommand(cmd *exec.Cmd) error {
 	return nil
 }
 
+// reURLCredentials matches the userinfo component of a URL-like substring.
+// The scheme is optional because git frequently echoes the scheme-relative
+// form (//user:secret@host/path) in its diagnostics.
+var reURLCredentials = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*:)?//[^/\s]+@`)
+
+// redactURLCredentials replaces the userinfo component of any URL-like
+// substring with "***". git anonymizes credentials on some transports but not
+// all - file:// and ssh:// print them verbatim, and GIT_TRACE dumps the raw
+// command line regardless - so stderr must be scrubbed before it is wrapped
+// into an error that may reach a log. The gitlab-ci auth layer bakes a
+// CI_JOB_TOKEN straight into the URL, so this is a live secret rather than a
+// hypothetical one.
+func redactURLCredentials(s string) string {
+	return reURLCredentials.ReplaceAllString(s, "${1}//***@")
+}
+
+// gitSafeEnv returns the process environment with git's tracing switches
+// removed and interactive credential prompting disabled.
+//
+// Tracing is dropped because GIT_TRACE and its relatives dump the full command
+// line - including any credentials baked into the remote URL - to stderr,
+// which is wrapped into returned errors and from there into logs. Prompting is
+// disabled because ref listing runs once per dependency during install: an
+// unauthenticated host must fail fast rather than block the whole run on a
+// credential prompt nobody is there to answer.
+func gitSafeEnv() []string {
+	src := os.Environ()
+	out := make([]string, 0, len(src)+1)
+	for _, entry := range src {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.HasPrefix(name, "GIT_TRACE") {
+			continue
+		}
+		switch name {
+		case "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES", "GIT_TERMINAL_PROMPT":
+			continue
+		}
+		out = append(out, entry)
+	}
+	return append(out, "GIT_TERMINAL_PROMPT=0")
+}
+
 // ListRefsNative enumerates the dependency's remote heads and tags using the
 // system git binary. It is the SSH counterpart to the ref listing go-git does
 // inside GetVersions: go-git's SSH transport does not read ~/.ssh/config and
@@ -278,22 +321,24 @@ func runCommand(cmd *exec.Cmd) error {
 // that use config aliases, custom keys or non-standard ports.
 //
 // The URL is passed explicitly, so no worktree, .git pointer or prior clone is
-// required. Only stdout is parsed; git writes its "From <url>" banner to stderr.
+// required. stdout is captured here rather than through runCommand because
+// runCommand routes stdout to msg.Debug and discards it; ls-remote itself
+// writes nothing to stderr on success.
 func ListRefsNative(dep domain.Dependency, decision auth.Decision) ([]*plumbing.Reference, error) {
 	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
 		return nil, err
 	}
 
-	//nolint:gosec,nolintlint // Git command with a resolved, validated remote URL
+	//nolint:gosec,nolintlint // URL originates from auth.Resolve; not independently validated here
 	cmd := exec.Command("git", "ls-remote", "--heads", "--tags", decision.URL) // #nosec G204
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = os.Environ()
+	cmd.Env = gitSafeEnv()
 
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("git ls-remote failed for %s: %w\nStderr: %s",
-			dep.Repository, err, stderr.String())
+			dep.Repository, err, redactURLCredentials(stderr.String()))
 	}
 
 	return parseLsRemote(stdout.String()), nil

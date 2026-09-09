@@ -157,3 +157,115 @@ func TestParseLsRemote_Garbage(t *testing.T) {
 		t.Errorf("got %q, want %q", refs[0].Name().Short(), "main")
 	}
 }
+
+// TestRedactURLCredentials verifies the userinfo component of a URL is replaced
+// before stderr can be wrapped into an error. git anonymizes credentials on
+// some transports but not all, and GIT_TRACE dumps the raw command line
+// regardless, so a secret can reach stderr verbatim.
+func TestRedactURLCredentials(t *testing.T) {
+	const secret = "SUPERSECRET123"
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "https with ci token",
+			in:   "fatal: unable to access 'https://gitlab-ci-token:" + secret + "@gitlab.example.com/g/l'",
+			want: "fatal: unable to access 'https://***@gitlab.example.com/g/l'",
+		},
+		{
+			// git strips the scheme from file:// diagnostics but keeps the
+			// userinfo verbatim, so the scheme-relative form must redact too.
+			name: "scheme relative url with userinfo",
+			in:   "fatal: '//user:" + secret + "@/no/such/path' does not appear to be a git repository",
+			want: "fatal: '//***@/no/such/path' does not appear to be a git repository",
+		},
+		{
+			name: "file scheme with userinfo",
+			in:   "fatal: repository 'file://user:" + secret + "@/no/such/path' not found",
+			want: "fatal: repository 'file://***@/no/such/path' not found",
+		},
+		{
+			name: "ssh scheme with userinfo",
+			in:   "ssh://git:" + secret + "@example.com:2222/o/r",
+			want: "ssh://***@example.com:2222/o/r",
+		},
+		{
+			name: "credential free url unchanged",
+			in:   "fatal: unable to access 'https://gitlab.example.com/g/l'",
+			want: "fatal: unable to access 'https://gitlab.example.com/g/l'",
+		},
+		{
+			name: "scp style ssh url unchanged",
+			in:   "git@github.com:hashload/boss",
+			want: "git@github.com:hashload/boss",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := redactURLCredentials(c.in)
+			if got != c.want {
+				t.Errorf("redactURLCredentials(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+// TestRedactURLCredentials_SecretAbsent locks the security property directly:
+// after redaction of a scheme-qualified URL the literal secret must be gone.
+func TestRedactURLCredentials_SecretAbsent(t *testing.T) {
+	const secret = "SUPERSECRET123"
+	for _, in := range []string{
+		"https://gitlab-ci-token:" + secret + "@gitlab.example.com/g/l",
+		"file://user:" + secret + "@/no/such/path",
+		"trace: run_command: git ls-remote https://x:" + secret + "@h/p https://y:" + secret + "@h/p",
+	} {
+		got := redactURLCredentials(in)
+		if strings.Contains(got, secret) {
+			t.Errorf("secret survived redaction of %q: %q", in, got)
+		}
+	}
+}
+
+// TestGitSafeEnv verifies tracing variables are stripped and terminal
+// prompting is disabled, so a traced developer shell cannot leak a token into
+// stderr and an unauthenticated host fails fast instead of blocking.
+func TestGitSafeEnv(t *testing.T) {
+	t.Setenv("GIT_TRACE", "1")
+	t.Setenv("GIT_TRACE_PACKET", "1")
+	t.Setenv("GIT_TRACE2_EVENT", "/tmp/t")
+	t.Setenv("GIT_CURL_VERBOSE", "1")
+	t.Setenv("GIT_REDACT_COOKIES", "0")
+	t.Setenv("BOSSY_KEEP_ME", "yes")
+	t.Setenv("GIT_TERMINAL_PROMPT", "1")
+
+	env := gitSafeEnv()
+
+	for _, e := range env {
+		name, _, _ := strings.Cut(e, "=")
+		switch name {
+		case "GIT_TRACE", "GIT_TRACE_PACKET", "GIT_TRACE2_EVENT", "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES":
+			t.Errorf("%q must not be inherited, got entry %q", name, e)
+		}
+	}
+
+	var prompt []string
+	keepFound := false
+	for _, e := range env {
+		if strings.HasPrefix(e, "GIT_TERMINAL_PROMPT=") {
+			prompt = append(prompt, e)
+		}
+		if e == "BOSSY_KEEP_ME=yes" {
+			keepFound = true
+		}
+	}
+	if len(prompt) != 1 || prompt[0] != "GIT_TERMINAL_PROMPT=0" {
+		t.Errorf("GIT_TERMINAL_PROMPT: got %v, want exactly [GIT_TERMINAL_PROMPT=0]", prompt)
+	}
+	if !keepFound {
+		t.Error("unrelated environment variables must be preserved")
+	}
+}
