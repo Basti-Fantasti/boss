@@ -274,7 +274,11 @@ bossy config delphi use 37.0-Win64
 
 ### > Shallow Clone
 
-You can enable shallow cloning to significantly speed up dependency downloads. Shallow clones only fetch the latest commit without the full git history, reducing download size dramatically (e.g., from 127 MB to <1 MB for large repositories).
+You can enable shallow cloning to significantly speed up dependency downloads. Shallow clones only fetch the latest commit of each branch without the full git history, reducing download size dramatically (e.g., from 127 MB to <1 MB for large repositories).
+
+All branch tips are still fetched, so branch-pinned dependencies keep resolving
+correctly. If a dependency is pinned to a commit SHA that predates the shallow
+cut-off, bossy deepens the clone automatically on first use.
 
 ```sh
 # Enable shallow clone (faster, recommended for CI/CD)
@@ -296,6 +300,27 @@ bossy install
 # Linux/macOS
 BOSS_GIT_SHALLOW=1 bossy install
 ```
+
+### > SSH Behaviour
+
+SSH dependencies are cloned and listed with the system `git` binary, so
+`~/.ssh/config` aliases, custom keys and non-standard ports all work as they
+do on the command line. Two details are worth knowing:
+
+- **`GIT_SSH_COMMAND` defaults to `ssh -o BatchMode=yes`** for bossy's own git
+  invocations when the variable is not already set. A passphrase-protected key
+  with no `ssh-agent` loaded therefore fails immediately instead of prompting.
+  That is deliberate: an invisible prompt hangs a CI job forever. Load an agent
+  if you need the key unlocked interactively.
+- **The environment variable outranks git's `core.sshCommand`.** If you
+  configured a custom ssh wrapper (custom key, proxy command) in
+  `~/.gitconfig` rather than in the environment, bossy will not pick it up and
+  will use plain `ssh -o BatchMode=yes` instead. Export `GIT_SSH_COMMAND` with
+  your wrapper to keep it in effect:
+
+  ```sh
+  export GIT_SSH_COMMAND='ssh -i ~/.ssh/id_work -o BatchMode=yes'
+  ```
 
 ### > Host Aliases
 

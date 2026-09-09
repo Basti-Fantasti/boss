@@ -28,19 +28,24 @@ GitLab Runner injects three env vars into every job:
 - `CI_JOB_TOKEN=<short-lived token>`
 
 When `bossy install` resolves a dependency whose host matches
-`CI_SERVER_HOST`, it transparently rewrites the clone URL to
-`https://gitlab-ci-token:${CI_JOB_TOKEN}@<host>/<path>` and clones over
-HTTPS. This applies regardless of how the dependency was declared in
-`bossy.json`:
+`CI_SERVER_HOST`, it rewrites the clone URL to plain HTTPS and supplies
+`gitlab-ci-token:${CI_JOB_TOKEN}` as basic-auth credentials for that
+request. The token is never part of the URL. This applies regardless of
+how the dependency was declared in `bossy.json`:
 
-| Declared as | In CI, becomes |
+| Declared as | In CI, cloned from |
 |---|---|
-| `git@gitlab.mydomain.com:foo/bar.git` | `https://gitlab-ci-token:TOKEN@gitlab.mydomain.com/foo/bar` |
-| `gitlab.mydomain.com/foo/bar` | `https://gitlab-ci-token:TOKEN@gitlab.mydomain.com/foo/bar` |
-| `https://gitlab.mydomain.com/foo/bar` | `https://gitlab-ci-token:TOKEN@gitlab.mydomain.com/foo/bar` |
+| `git@gitlab.mydomain.com:foo/bar.git` | `https://gitlab.mydomain.com/foo/bar` |
+| `gitlab.mydomain.com/foo/bar` | `https://gitlab.mydomain.com/foo/bar` |
+| `https://gitlab.mydomain.com/foo/bar` | `https://gitlab.mydomain.com/foo/bar` |
 
 So the same `bossy.json` works for local SSH development and CI HTTPS
 without any branching logic.
+
+Because the token stays out of the URL, it is not written into the
+dependency cache's `.git/config` on disk, and an expired token from an
+earlier job can never be reused. Caches that still carry a token baked in
+by an older bossy are scrubbed on the next update.
 
 Public dependencies (e.g. `github.com/HashLoad/horse`) clone over plain
 HTTPS — `CI_JOB_TOKEN` is not used for them.
@@ -69,6 +74,28 @@ build:
 > Warning: `bossy update` re-resolves every constraint against the remote
 > and rewrites the lock. Run it locally, intentionally, when you want to
 > pick up new upstream versions — never as part of a normal CI build.
+
+Shallow clone (`bossy config git shallow true`, or `BOSS_GIT_SHALLOW=1`)
+is safe to combine with this. All branch tips are fetched, so
+branch-pinned dependencies still resolve, and a SHA older than the
+shallow cut-off triggers an automatic deepening fetch. Caches created by
+earlier bossy versions — which restricted the remote refspec to a single
+branch — are repaired on the next `bossy install`.
+
+## Shell runners
+
+The examples above use a Docker runner (`image:`), where every job starts
+from a clean container and `~/.bossy/cache` is empty. On a shell runner
+the cache directory lives on the machine and persists between jobs. That
+is mostly a win: dependencies are fetched once and later jobs only update
+them.
+
+The historical hazard was the CI job token. An older bossy embedded it in
+the clone URL, which git persisted into the cache; the next job then
+fetched with the previous job's expired token and failed with `401` or
+`403`. The token is now passed as a credential and the remote URL is
+overridden on every fetch, so a persisted URL is never reused. No
+`before_script` cache cleanup is needed.
 
 ## Troubleshooting
 
