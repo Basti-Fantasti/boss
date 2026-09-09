@@ -2,9 +2,7 @@
 package gitadapter
 
 import (
-	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,53 +10,6 @@ import (
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/pkg/env"
 )
-
-// hermeticGitEnv returns an environment that detaches git from the user's
-// global and system configuration and drops the repository-selecting
-// variables, mirroring what buildNativeFixture does for the fixture itself.
-// The clone under test needs the same isolation: an ambient GIT_DIR would
-// redirect the clone, and a global remote.origin.fetch or clone.* setting
-// would make the refspec assertions read the developer's config rather than
-// the flags.
-func hermeticGitEnv(t *testing.T) []string {
-	t.Helper()
-
-	// A path that does not exist: git >= 2.32 treats an unreadable
-	// GIT_CONFIG_GLOBAL/GIT_CONFIG_SYSTEM as "no such config file".
-	noConfig := filepath.Join(t.TempDir(), "absent-gitconfig")
-
-	gitEnv := make([]string, 0, len(os.Environ())+6)
-	for _, entry := range os.Environ() {
-		name, _, _ := strings.Cut(entry, "=")
-		switch strings.ToUpper(name) {
-		case "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE":
-			continue
-		}
-		gitEnv = append(gitEnv, entry)
-	}
-	return append(gitEnv,
-		"GIT_CONFIG_GLOBAL="+noConfig,
-		"GIT_CONFIG_SYSTEM="+noConfig,
-		"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
-		"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
-	)
-}
-
-// runGit runs git in dir with the hermetic environment and returns trimmed
-// stdout, failing the test if git exits non-zero.
-func runGit(t *testing.T, gitEnv []string, dir string, args ...string) string {
-	t.Helper()
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Env = gitEnv
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("git %v: %v\n%s%s", args, err, stdout.String(), stderr.String())
-	}
-	return strings.TrimSpace(stdout.String())
-}
 
 // TestShallowCloneFlags_KeepEveryBranchReachable is the regression test for the
 // shallow-clone defect: git implies --single-branch with --depth, which writes

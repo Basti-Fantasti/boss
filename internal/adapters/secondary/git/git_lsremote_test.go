@@ -2,7 +2,6 @@
 package gitadapter
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,13 +29,8 @@ type nativeFixture struct {
 // annotated tag. It returns a file:// URL suitable for use as a clone/ls-remote
 // source together with the object ids git assigned.
 //
-// The fixture is deliberately hermetic. It does not merely override branch
-// naming and identity: it also detaches git from the user's global and system
-// configuration and clears any inherited repository-selecting variables. A
-// global core.hooksPath (which the pre-commit framework installs, and this
-// project pins pre-commit) would make `git commit` run an ambient hook, a
-// global commit.gpgsign could block on a pinentry prompt, and an ambient
-// GIT_DIR would hijack `git init .` so that src/.git never exists.
+// The fixture runs git through hermeticGitEnv, which is what keeps the
+// developer's own configuration out of it - see there for the reasoning.
 func buildNativeFixture(t *testing.T) nativeFixture {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -44,40 +38,11 @@ func buildNativeFixture(t *testing.T) nativeFixture {
 	}
 
 	src := t.TempDir()
-	// A path that does not exist: git >= 2.32 treats an unreadable
-	// GIT_CONFIG_GLOBAL/GIT_CONFIG_SYSTEM as "no such config file".
-	noConfig := filepath.Join(t.TempDir(), "absent-gitconfig")
-
-	// Drop the repository-selecting variables outright; git treats an empty
-	// GIT_DIR as set, so blanking them is not enough.
-	env := make([]string, 0, len(os.Environ())+6)
-	for _, entry := range os.Environ() {
-		name, _, _ := strings.Cut(entry, "=")
-		switch strings.ToUpper(name) {
-		case "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE":
-			continue
-		}
-		env = append(env, entry)
-	}
-	env = append(env,
-		"GIT_CONFIG_GLOBAL="+noConfig,
-		"GIT_CONFIG_SYSTEM="+noConfig,
-		"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
-		"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
-	)
+	gitEnv := hermeticGitEnv(t)
 
 	runOut := func(args ...string) string {
 		t.Helper()
-		var stdout, stderr bytes.Buffer
-		cmd := exec.Command("git", args...)
-		cmd.Dir = src
-		cmd.Env = env
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("git %v: %v\n%s%s", args, err, stdout.String(), stderr.String())
-		}
-		return strings.TrimSpace(stdout.String())
+		return runGit(t, gitEnv, src, args...)
 	}
 
 	write := func(content string) {
