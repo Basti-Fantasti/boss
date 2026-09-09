@@ -110,10 +110,12 @@ func getVersionsEmbedded(
 ) []*plumbing.Reference {
 	var result = make([]*plumbing.Reference, 0)
 
+	// RemoteURL: see UpdateCacheEmbedded.
 	err := repository.Fetch(&goGit.FetchOptions{
-		Force: true,
-		Prune: true,
-		Auth:  httpsAuth(decision),
+		Force:     true,
+		Prune:     true,
+		Auth:      httpsAuth(decision),
+		RemoteURL: decision.URL,
 		RefSpecs: []gitConfig.RefSpec{
 			"refs/*:refs/*",
 			"HEAD:refs/heads/HEAD",

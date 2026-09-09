@@ -86,9 +86,13 @@ func UpdateCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Re
 		})
 	}
 
+	// RemoteURL overrides whatever was persisted in the cache's .git/config at
+	// clone time. This is what keeps a stale CI job token — or a changed host
+	// protocol or credential — from being reused on a later run.
 	err = repository.Fetch(&git.FetchOptions{
-		Force: true,
-		Auth:  httpsAuth(decision),
+		Force:     true,
+		Auth:      httpsAuth(decision),
+		RemoteURL: decision.URL,
 	})
 	if err != nil && err.Error() != "already up-to-date" {
 		msg.Debug("Error to fetch repository of %s: %s", dep.Repository, err)
@@ -158,11 +162,13 @@ func UnshallowFetchEmbedded(dep domain.Dependency, decision auth.Decision) error
 	if repository == nil {
 		return fmt.Errorf("repository not found for %s", dep.Repository)
 	}
+	// RemoteURL: see UpdateCacheEmbedded.
 	err := repository.Fetch(&git.FetchOptions{
-		Depth: 0,
-		Force: true,
-		Tags:  git.AllTags,
-		Auth:  httpsAuth(decision),
+		Depth:     0,
+		Force:     true,
+		Tags:      git.AllTags,
+		Auth:      httpsAuth(decision),
+		RemoteURL: decision.URL,
 	})
 	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 		return err
@@ -176,9 +182,11 @@ func PullEmbedded(dep domain.Dependency, decision auth.Decision) error {
 	if err != nil {
 		return err
 	}
+	// RemoteURL: see UpdateCacheEmbedded.
 	return worktree.Pull(&git.PullOptions{
-		Force: true,
-		Auth:  httpsAuth(decision),
+		Force:     true,
+		Auth:      httpsAuth(decision),
+		RemoteURL: decision.URL,
 	})
 }
 

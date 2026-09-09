@@ -16,9 +16,11 @@ import (
 )
 
 // nativeFixture describes the on-disk repository built by buildNativeFixture:
-// the file:// URL to list refs from, and the object ids git actually assigned,
-// keyed by full ref name.
+// its working directory (so a test can add commits or tags to it after the
+// fact), the file:// URL to list refs from, and the object ids git actually
+// assigned, keyed by full ref name.
 type nativeFixture struct {
+	dir  string
 	url  string
 	refs map[string]string
 }
@@ -112,7 +114,7 @@ func buildNativeFixture(t *testing.T) nativeFixture {
 	// letter into the URL authority component.
 	url := "file:///" + strings.TrimPrefix(filepath.ToSlash(src), "/")
 
-	return nativeFixture{url: url, refs: refs}
+	return nativeFixture{dir: src, url: url, refs: refs}
 }
 
 // TestListRefsNative_SeesAllBranchesAndTags is the regression test for the
