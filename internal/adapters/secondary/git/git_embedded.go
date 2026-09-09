@@ -63,6 +63,10 @@ func scrubTokenFromURL(raw string) string {
 func scrubPersistedRemoteURLs(dep domain.Dependency, repository *git.Repository) {
 	cfg, err := repository.Config()
 	if err != nil {
+		// Same posture as the SetConfig failure below: nothing the user can act
+		// on, since a cache whose config cannot be read still fetches, but it
+		// should not vanish without trace either.
+		msg.Debug("Could not read cached config for %s: %s", dep.Repository, err)
 		return
 	}
 	changed := false

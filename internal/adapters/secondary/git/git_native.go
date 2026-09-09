@@ -152,12 +152,12 @@ func getWrapperFetch(dep domain.Dependency) error {
 
 	// Repair caches cloned by an older bossy that passed --single-branch: their
 	// refspec is pinned to one branch, so `fetch --all` silently brings nothing
-	// for every other branch. Rewriting the refspec is idempotent and harmless
-	// on healthy caches.
-	cmdRefspec := exec.Command("git", "config", "remote.origin.fetch",
-		"+refs/heads/*:refs/remotes/origin/*")
-	cmdRefspec.Dir = dirModule
-	if err := runCommand(cmdRefspec); err != nil {
+	// for every other branch.
+	//
+	// Best effort, like scrubPersistedRemoteURLs: the fetch below is the real
+	// operation and fails loudly on its own, so a repair that could not be
+	// applied is a debug note rather than a hard error.
+	if err := repairRemoteRefspec(dirModule); err != nil {
 		msg.Debug("Could not normalise refspec for %s: %s", dep.Repository, err)
 	}
 
@@ -174,6 +174,87 @@ func getWrapperFetch(dep domain.Dependency) error {
 
 	_ = os.Remove(filepath.Join(dirModule, ".git"))
 	return nil
+}
+
+// wildcardHeadsRefspec is the refspec every cache bossy manages must have:
+// one that brings all branches, so a later checkout of any of them succeeds.
+const wildcardHeadsRefspec = "+refs/heads/*:refs/remotes/origin/*"
+
+// repairRemoteRefspec makes remote.origin.fetch cover refs/heads/* in the
+// cache rooted at dirModule, rewriting it only when nothing already does.
+//
+// Read before write, for two reasons. `git config <key> <value>` refuses a
+// multi-valued key outright -
+//
+//	warning: remote.origin.fetch has multiple values
+//	error: cannot overwrite multiple values with a single value
+//
+// - leaving the config untouched, so an unconditional single-value write is a
+// silent no-op on exactly the caches most likely to be unusual. And rewriting
+// unconditionally would discard a refspec the user deliberately narrowed or
+// extended: the old claim that this is "idempotent and harmless on healthy
+// caches" only ever held for caches bossy cloned itself.
+//
+// The healthy case still costs one git invocation, the same as the
+// unconditional write it replaces.
+//
+// The rewrite uses --replace-all because that is the only way to collapse a
+// multi-valued key. A cache that carried extra refspecs alongside a restricted
+// one - a refs/notes/* mapping, say - loses them, which is accepted: none of
+// its values covered refs/heads/*, so it was broken for bossy's purposes and
+// the wildcard is what makes it usable again.
+//
+// There is no embedded counterpart. getVersionsEmbedded asks for an explicit
+// refs/*:refs/* refspec on every call, so a restricted stored refspec never
+// reaches the go-git path.
+func repairRemoteRefspec(dirModule string) error {
+	existing, err := gitConfigValues(dirModule, "remote.origin.fetch")
+	if err != nil {
+		return err
+	}
+	for _, value := range existing {
+		if strings.Contains(value, "refs/heads/*") {
+			return nil
+		}
+	}
+
+	cmd := exec.Command("git", "config", "--replace-all", "remote.origin.fetch", wildcardHeadsRefspec)
+	cmd.Dir = dirModule
+	return runCommand(cmd)
+}
+
+// gitConfigValues returns every value configured for key in the repository at
+// dirModule. stdout is captured here rather than through runCommand, which
+// routes it to msg.Debug and discards it.
+//
+// An unset key makes git exit 1 with no output; that is reported as no values
+// rather than as an error, because a missing refspec is one of the broken
+// states repairRemoteRefspec exists to fix.
+func gitConfigValues(dirModule, key string) ([]string, error) {
+	var stdout, stderr bytes.Buffer
+	//nolint:gosec,nolintlint // key is a compile-time constant, not user input
+	cmd := exec.Command("git", "config", "--get-all", key) // #nosec G204
+	cmd.Dir = dirModule
+	cmd.Env = gitSafeEnv()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("git config --get-all %s: %w\nStderr: %s",
+			key, err, redactURLCredentials(stderr.String()))
+	}
+
+	values := make([]string, 0)
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return values, nil
 }
 
 func initSubmodulesNative(dep domain.Dependency) error {

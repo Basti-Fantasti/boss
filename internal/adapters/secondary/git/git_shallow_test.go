@@ -75,17 +75,14 @@ func TestCloneCacheNative_ShallowKeepsEveryBranchReachable(t *testing.T) {
 	}
 }
 
-// TestGetWrapperFetch_RepairsRestrictedRefspec covers the other half of the
-// defect: caches that an older bossy already cloned with --single-branch. Their
-// stored refspec is pinned to the default branch, so `fetch --all` silently
-// brings nothing for every other branch and `fetch --unshallow` does not
-// recover it either — the cache stays broken for as long as it exists.
-//
-// The test builds exactly such a cache and drives the real getWrapperFetch over
-// it, so it fails if the refspec normalisation is dropped.
-func TestGetWrapperFetch_RepairsRestrictedRefspec(t *testing.T) {
-	fixture := buildNativeFixture(t)
-	gitEnv := hermeticGitEnv(t)
+// seedSingleBranchCache builds a cache in the shape an older bossy left behind
+// - separate git dir, cloned --single-branch - and returns the dependency and
+// the cache git dir. It leaves the module directory without a .git pointer,
+// which is the state doClone hands to getWrapperFetch.
+func seedSingleBranchCache(t *testing.T, fixture nativeFixture, gitEnv []string, name string) (
+	domain.Dependency, string,
+) {
+	t.Helper()
 	// Point the cache and the modules dir at throwaway locations. This mirrors
 	// git_checkouthash_test.go's withFixtureEnv, which lives in the external
 	// test package and so cannot be reused for an unexported function.
@@ -99,7 +96,7 @@ func TestGetWrapperFetch_RepairsRestrictedRefspec(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", noConfig)
 	t.Setenv("GIT_CONFIG_SYSTEM", noConfig)
 
-	dep := domain.Dependency{Repository: "example.com/owner/fixture-repo"}
+	dep := domain.Dependency{Repository: "example.com/owner/" + name}
 	dirModule := filepath.Join(env.GetModulesDir(), dep.Name())
 	gitDir := filepath.Join(env.GetCacheDir(), dep.HashName())
 
@@ -109,7 +106,6 @@ func TestGetWrapperFetch_RepairsRestrictedRefspec(t *testing.T) {
 		t.Fatalf("create cache dir: %v", err)
 	}
 
-	// A cache as an older bossy left it: separate git dir, cloned single-branch.
 	runGit(t, gitEnv, "", "clone", "--separate-git-dir="+gitDir,
 		"--depth", "1", "--single-branch", fixture.url, dirModule)
 	// doClone removes the .git pointer once the clone finishes; getWrapperFetch
@@ -118,12 +114,28 @@ func TestGetWrapperFetch_RepairsRestrictedRefspec(t *testing.T) {
 		t.Fatalf("remove .git pointer: %v", err)
 	}
 
+	return dep, gitDir
+}
+
+// TestGetWrapperFetch_RepairsRestrictedRefspec covers the other half of the
+// defect: caches that an older bossy already cloned with --single-branch. Their
+// stored refspec is pinned to the default branch, so `fetch --all` silently
+// brings nothing for every other branch and `fetch --unshallow` does not
+// recover it either — the cache stays broken for as long as it exists.
+//
+// The test builds exactly such a cache and drives the real getWrapperFetch over
+// it, so it fails if the refspec normalisation is dropped.
+func TestGetWrapperFetch_RepairsRestrictedRefspec(t *testing.T) {
+	fixture := buildNativeFixture(t)
+	gitEnv := hermeticGitEnv(t)
+	dep, gitDir := seedSingleBranchCache(t, fixture, gitEnv, "fixture-repo")
+
 	if err := getWrapperFetch(dep); err != nil {
 		t.Fatalf("getWrapperFetch: %v", err)
 	}
 
 	if refspec := runGit(t, gitEnv, "", "--git-dir", gitDir, "config",
-		"remote.origin.fetch"); refspec != "+refs/heads/*:refs/remotes/origin/*" {
+		"remote.origin.fetch"); refspec != wildcardHeadsRefspec {
 		t.Errorf("refspec not repaired: %q", refspec)
 	}
 
@@ -133,66 +145,71 @@ func TestGetWrapperFetch_RepairsRestrictedRefspec(t *testing.T) {
 	}
 }
 
-// TestCloneCacheEmbedded_ShallowKeepsEveryBranchReachable is the embedded
-// counterpart. go-git has the same trap as the git binary and it is one token
-// away: with CloneOptions.SingleBranch set, go-git substitutes
-// "+HEAD:refs/remotes/%s/HEAD" for the wildcard refspec and persists that into
-// the cache's config, after which every branch but the cloned one is
-// unreachable exactly as in the native case.
+// TestGetWrapperFetch_RepairsMultiValuedRefspec is the regression test for a
+// repair that silently did nothing. `git config <key> <value>` refuses to touch
+// a multi-valued key -
 //
-// Asserting the persisted refspec is what makes this a test of bossy rather
-// than of go-git: it reads back what CloneCacheEmbedded left on disk.
-func TestCloneCacheEmbedded_ShallowKeepsEveryBranchReachable(t *testing.T) {
+//	error: cannot overwrite multiple values with a single value
+//
+// - and getWrapperFetch swallows that failure at msg.Debug, so a cache whose
+// remote carried more than one refspec, none of them covering refs/heads/*,
+// stayed broken forever with nothing to show for it.
+func TestGetWrapperFetch_RepairsMultiValuedRefspec(t *testing.T) {
 	fixture := buildNativeFixture(t)
-	t.Setenv("BOSS_HOME", t.TempDir())
-	t.Setenv("BOSS_GIT_SHALLOW", "true")
+	gitEnv := hermeticGitEnv(t)
+	dep, gitDir := seedSingleBranchCache(t, fixture, gitEnv, "multivalued-repo")
 
-	dep := domain.Dependency{Repository: "https://example.com/owner/shallow-embedded"}
-	decision := auth.Decision{URL: fixture.url, Transport: auth.TransportHTTPS}
+	// Two values, neither covering refs/heads/*: the state a single-value write
+	// cannot repair.
+	runGit(t, gitEnv, "", "--git-dir", gitDir, "config", "--replace-all",
+		"remote.origin.fetch", "+refs/heads/main:refs/remotes/origin/main")
+	runGit(t, gitEnv, "", "--git-dir", gitDir, "config", "--add",
+		"remote.origin.fetch", "+refs/tags/*:refs/tags/*")
 
-	repository, err := CloneCacheEmbedded(dep, decision)
-	if err != nil {
-		t.Fatalf("CloneCacheEmbedded: %v", err)
-	}
-
-	cfg, err := repository.Config()
-	if err != nil {
-		t.Fatalf("read cache config: %v", err)
-	}
-	origin, ok := cfg.Remotes["origin"]
-	if !ok {
-		t.Fatalf("clone persisted no origin remote; the assertion below would be vacuous (remotes: %v)", cfg.Remotes)
-	}
-	if len(origin.Fetch) == 0 {
-		t.Fatal("origin remote persisted no refspec; every branch but HEAD would be unreachable")
-	}
-	covered := false
-	for _, refspec := range origin.Fetch {
-		if strings.Contains(string(refspec), "refs/heads/*") {
-			covered = true
-		}
-	}
-	if !covered {
-		t.Errorf("origin refspec %v covers no branch wildcard, want one covering refs/heads/*", origin.Fetch)
+	// Guard the premise: if git ever stopped accepting a multi-valued
+	// remote.origin.fetch, the test would still pass while proving nothing.
+	before := runGit(t, gitEnv, "", "--git-dir", gitDir, "config", "--get-all", "remote.origin.fetch")
+	if len(strings.Split(before, "\n")) != 2 {
+		t.Fatalf("fixture did not produce a multi-valued refspec, got %q", before)
 	}
 
-	// Without this the test would still pass if shallow mode were quietly
-	// ignored, which would make the refspec assertion prove nothing about the
-	// shallow path in particular.
-	shallow, err := repository.Storer.Shallow()
-	if err != nil {
-		t.Fatalf("read shallow list: %v", err)
-	}
-	if len(shallow) == 0 {
-		t.Error("clone is not shallow: the shallow list is empty, so Depth was not honoured")
+	if err := getWrapperFetch(dep); err != nil {
+		t.Fatalf("getWrapperFetch: %v", err)
 	}
 
-	// The payoff: the non-default branch must have a remote-tracking ref.
-	ref, err := repository.Reference("refs/remotes/origin/develop", true)
-	if err != nil {
-		t.Fatalf("develop is unreachable in the shallow cache: %v", err)
+	if refspec := runGit(t, gitEnv, "", "--git-dir", gitDir, "config", "--get-all",
+		"remote.origin.fetch"); refspec != wildcardHeadsRefspec {
+		t.Errorf("multi-valued refspec not repaired: %q, want %q", refspec, wildcardHeadsRefspec)
 	}
-	if ref.Hash().String() != fixture.refs["refs/heads/develop"] {
-		t.Errorf("develop tip = %s, want %s", ref.Hash(), fixture.refs["refs/heads/develop"])
+
+	got := runGit(t, gitEnv, "", "--git-dir", gitDir, "rev-parse", "refs/remotes/origin/develop")
+	if got != fixture.refs["refs/heads/develop"] {
+		t.Errorf("develop tip after repair = %q, want %q", got, fixture.refs["refs/heads/develop"])
+	}
+}
+
+// TestGetWrapperFetch_PreservesCoveringRefspec is the other side of the same
+// change: the repair must not rewrite a refspec that already works. An
+// unconditional write discards whatever the user deliberately added alongside
+// the wildcard, which was never "harmless on healthy caches" for any cache
+// bossy did not clone itself.
+func TestGetWrapperFetch_PreservesCoveringRefspec(t *testing.T) {
+	fixture := buildNativeFixture(t)
+	gitEnv := hermeticGitEnv(t)
+	dep, gitDir := seedSingleBranchCache(t, fixture, gitEnv, "covering-repo")
+
+	const extra = "+refs/tags/*:refs/tags/*"
+	runGit(t, gitEnv, "", "--git-dir", gitDir, "config", "--replace-all",
+		"remote.origin.fetch", wildcardHeadsRefspec)
+	runGit(t, gitEnv, "", "--git-dir", gitDir, "config", "--add", "remote.origin.fetch", extra)
+
+	if err := getWrapperFetch(dep); err != nil {
+		t.Fatalf("getWrapperFetch: %v", err)
+	}
+
+	got := runGit(t, gitEnv, "", "--git-dir", gitDir, "config", "--get-all", "remote.origin.fetch")
+	want := wildcardHeadsRefspec + "\n" + extra
+	if got != want {
+		t.Errorf("refspec was rewritten:\n got %q\nwant %q", got, want)
 	}
 }
