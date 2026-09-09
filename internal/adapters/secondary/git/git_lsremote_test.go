@@ -200,10 +200,15 @@ func TestListRefsNative_ErrorRedactsCredentials(t *testing.T) {
 // and nothing was ever killed. Keep timeoutSleep >> maxElapsed.
 func TestListRefsNative_Timeout(t *testing.T) {
 	// The deadline the listing is given, and the wall-clock ceiling a run that
-	// honours it must stay under. maxElapsed leaves room for the WaitDelay the
-	// implementation applies to the output pipes after killing git; the
-	// stand-in outlives it by an order of magnitude, so a run that is not
-	// killed cannot slip under it.
+	// honours it must stay under.
+	//
+	// maxElapsed leaves no room for refListWaitDelay and is not meant to: the
+	// WaitDelay is not expected to engage here. git does not pass its own
+	// stdout pipe down to the ssh child, so nothing holds the write end open
+	// once git is killed and Wait returns immediately - measured at roughly
+	// 100ms on both Windows and WSL Ubuntu. The 3s bound is slack over that
+	// figure, and it still has teeth because the stand-in sleeps 30s, so a run
+	// that is never killed cannot slip under it.
 	const (
 		timeout    = 100 * time.Millisecond
 		maxElapsed = 3 * time.Second
@@ -231,10 +236,12 @@ func TestListRefsNative_Timeout(t *testing.T) {
 		t.Errorf("refs must be nil on error, got %v", refs)
 	}
 	if !strings.Contains(err.Error(), "timed out") {
-		if elapsed < timeout {
-			// The failure landed before the deadline could have expired, so
-			// the stand-in never blocked: no POSIX sleep is reachable from
-			// git's shell on this machine and there is nothing to measure.
+		if isUnrunnableSSHStandIn(err) {
+			// No POSIX sleep is reachable from git's shell on this machine, so
+			// the stand-in never blocked and there is nothing to measure. The
+			// diagnosis comes from the shape of the error rather than from the
+			// clock: a spawn failure that happens to take longer than the
+			// deadline on a loaded runner is still a spawn failure.
 			t.Skipf("ssh stand-in did not block, deadline not exercised: %v", err)
 		}
 		t.Fatalf("listing blocked past its deadline but did not report a timeout: %v", err)
@@ -287,4 +294,29 @@ func TestGetVersions_SSHListingFailureIsAnError(t *testing.T) {
 	if refs != nil {
 		t.Errorf("refs must be nil on error, got %v", refs)
 	}
+}
+
+// isUnrunnableSSHStandIn reports whether err is git failing because the
+// GIT_SSH_COMMAND stand-in could not be executed at all, as opposed to any
+// other ls-remote failure. The wording comes from whichever shell git used, so
+// the POSIX, cmd.exe and git-internal phrasings are all matched.
+//
+// This has to be decided from the error rather than from elapsed time. A
+// stand-in that never ran fails fast on a quiet machine and slowly on a loaded
+// one, and a wall-clock threshold turns the loaded case into a confusing hard
+// failure instead of the intended skip.
+func isUnrunnableSSHStandIn(err error) bool {
+	s := strings.ToLower(err.Error())
+	for _, hint := range []string{
+		"command not found", // POSIX sh
+		"not recognized as an internal or external command", // cmd.exe
+		"no such file or directory",                         // execve failure
+		"cannot run",                                        // git's own wording
+		"unable to fork",
+	} {
+		if strings.Contains(s, hint) {
+			return true
+		}
+	}
+	return false
 }

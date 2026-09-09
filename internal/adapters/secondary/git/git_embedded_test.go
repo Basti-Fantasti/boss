@@ -84,10 +84,17 @@ func TestUpdateCacheEmbedded_RemoteURLOverridesPersistedURL(t *testing.T) {
 	if len(cfg.Remotes) == 0 {
 		t.Fatal("seed clone persisted no remote; the fixture cannot exercise the override")
 	}
+	rewritten := 0
 	for _, remote := range cfg.Remotes {
 		for i := range remote.URLs {
 			remote.URLs[i] = deadURL
+			rewritten++
 		}
+	}
+	// A remote with no URLs would leave the cache perfectly fetchable and the
+	// test green without the override ever being exercised.
+	if rewritten == 0 {
+		t.Fatal("no remote URL was replaced; the persisted URL is not actually unreachable")
 	}
 	if errSet := repository.SetConfig(cfg); errSet != nil {
 		t.Fatalf("write cache config: %v", errSet)
@@ -165,10 +172,15 @@ func TestUpdateCacheEmbedded_ScrubsPersistedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read cache config: %v", err)
 	}
+	seeded := 0
 	for _, remote := range cfg.Remotes {
 		for i := range remote.URLs {
 			remote.URLs[i] = "https://gitlab-ci-token:" + secret + "@gitlab.example.com/group/lib"
+			seeded++
 		}
+	}
+	if seeded == 0 {
+		t.Fatal("seed clone persisted no remote URL; there is no token on disk to scrub")
 	}
 	if errSet := repository.SetConfig(cfg); errSet != nil {
 		t.Fatalf("write cache config: %v", errSet)
@@ -184,8 +196,14 @@ func TestUpdateCacheEmbedded_ScrubsPersistedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("re-read cache config: %v", err)
 	}
+	// Both loops below range over what the scrub left behind. If the update ever
+	// stopped persisting a remote - or corrupted the config on its way to disk -
+	// every body would be skipped and the test would report green without having
+	// looked at a single URL, so the inspected count is asserted too.
+	inspected := 0
 	for name, remote := range after.Remotes {
 		for _, u := range remote.URLs {
+			inspected++
 			if strings.Contains(u, secret) {
 				t.Errorf("remote %q still holds the job token: %q", name, u)
 			}
@@ -193,5 +211,8 @@ func TestUpdateCacheEmbedded_ScrubsPersistedToken(t *testing.T) {
 				t.Errorf("remote %q URL = %q, want the credential stripped and nothing else changed", name, u)
 			}
 		}
+	}
+	if inspected != seeded {
+		t.Fatalf("inspected %d remote URLs after the scrub, want the %d that were seeded", inspected, seeded)
 	}
 }
