@@ -4,7 +4,8 @@ import "os"
 
 // tryGitLabCI implements the highest-priority resolution layer:
 // when running under a GitLab Runner with a CI job token, rewrite
-// any dep URL on the same GitLab instance to authenticated HTTPS.
+// any dep URL on the same GitLab instance to HTTPS with the job
+// token supplied as a credential.
 //
 // All three env vars (GITLAB_CI, CI_SERVER_HOST, CI_JOB_TOKEN) must
 // be non-empty AND the dep host must match CI_SERVER_HOST. Missing
@@ -22,11 +23,13 @@ func tryGitLabCI(parsed ParsedURL) (Decision, bool) {
 	if parsed.Host == "" || parsed.Host != serverHost {
 		return Decision{}, false
 	}
-	url := "https://gitlab-ci-token:" + token + "@" + parsed.Host + "/" + parsed.Path
+	// The token goes in the credential, never the URL. go-git persists the
+	// clone URL into the cache's .git/config, so a token embedded here would be
+	// written to disk and then reused — expired — by the next CI job.
 	return Decision{
-		URL:        url,
+		URL:        "https://" + parsed.Host + "/" + parsed.Path,
 		Transport:  TransportHTTPS,
-		Credential: CredentialSpec{}, // baked into URL
+		Credential: CredentialSpec{User: "gitlab-ci-token", Password: token},
 		Layer:      "gitlab-ci",
 	}, true
 }

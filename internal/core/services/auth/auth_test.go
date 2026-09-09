@@ -58,8 +58,11 @@ func TestResolve_GitLabCI_BeatsExplicitSSH(t *testing.T) {
 	if d.Transport != TransportHTTPS {
 		t.Errorf("CI must coerce SSH form to HTTPS; got %v", d.Transport)
 	}
-	if d.URL != "https://gitlab-ci-token:tok@gitlab.mydomain.com/g/r" {
+	if d.URL != "https://gitlab.mydomain.com/g/r" {
 		t.Errorf("URL = %q", d.URL)
+	}
+	if d.Credential.User != "gitlab-ci-token" || d.Credential.Password != "tok" {
+		t.Errorf("Credential = %+v, want the job token carried as a credential", d.Credential)
 	}
 	if d.Layer != "gitlab-ci" {
 		t.Errorf("Layer = %q", d.Layer)
