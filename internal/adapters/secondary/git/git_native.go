@@ -270,3 +270,24 @@ func runCommand(cmd *exec.Cmd) error {
 
 	return nil
 }
+
+// parseLsRemote turns `git ls-remote` output ("<sha>\t<refname>" per line)
+// into plumbing references. Peeled annotated-tag entries ("refs/tags/x^{}")
+// are skipped: the tag object itself is the ref bossy resolves against.
+// Malformed lines are skipped rather than treated as fatal — a partially
+// parseable listing is more useful than none.
+func parseLsRemote(out string) []*plumbing.Reference {
+	refs := make([]*plumbing.Reference, 0)
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) != 2 {
+			continue
+		}
+		sha, name := fields[0], fields[1]
+		if strings.HasSuffix(name, "^{}") {
+			continue
+		}
+		refs = append(refs, plumbing.NewReferenceFromStrings(name, sha))
+	}
+	return refs
+}

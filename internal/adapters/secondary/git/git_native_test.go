@@ -78,3 +78,50 @@ func TestRequireGitErrorContainsDependencyInfo(t *testing.T) {
 		t.Error("error message must contain remediation hint")
 	}
 }
+
+// TestParseLsRemote verifies that ls-remote output is parsed into references
+// whose Short() names match what installer.getVersion compares against, and
+// that peeled tag entries are discarded.
+func TestParseLsRemote(t *testing.T) {
+	out := "" +
+		"81a517be28652c5c25656102a7cf4d592450beeb\trefs/heads/develop\n" +
+		"c2b107ffbdc3246b1cb2696b722b39616621c878\trefs/heads/main\n" +
+		"026988d4bf23b80ea67639de88b5e007a95831ee\trefs/tags/v1.0.0\n" +
+		"c2b107ffbdc3246b1cb2696b722b39616621c878\trefs/tags/v1.1.0\n" +
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\trefs/tags/v1.1.0^{}\n"
+
+	refs := parseLsRemote(out)
+
+	if len(refs) != 4 {
+		t.Fatalf("got %d refs, want 4 (peeled tag must be skipped)", len(refs))
+	}
+
+	got := map[string]string{}
+	for _, r := range refs {
+		got[r.Name().Short()] = r.Hash().String()
+	}
+
+	// Short() must yield "develop", not "origin/develop" — installer.getVersion
+	// compares against the bare branch name.
+	if got["develop"] != "81a517be28652c5c25656102a7cf4d592450beeb" {
+		t.Errorf("develop: got %q", got["develop"])
+	}
+	if got["v1.0.0"] != "026988d4bf23b80ea67639de88b5e007a95831ee" {
+		t.Errorf("v1.0.0: got %q", got["v1.0.0"])
+	}
+	if _, ok := got["main"]; !ok {
+		t.Error("main ref missing")
+	}
+}
+
+// TestParseLsRemote_Garbage verifies malformed lines are skipped, not fatal.
+func TestParseLsRemote_Garbage(t *testing.T) {
+	out := "not-a-ref-line\n\n   \nc2b107ffbdc3246b1cb2696b722b39616621c878\trefs/heads/main\n"
+	refs := parseLsRemote(out)
+	if len(refs) != 1 {
+		t.Fatalf("got %d refs, want 1", len(refs))
+	}
+	if refs[0].Name().Short() != "main" {
+		t.Errorf("got %q, want main", refs[0].Name().Short())
+	}
+}
