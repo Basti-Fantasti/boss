@@ -224,12 +224,28 @@ func TestListRefsNative_ErrorRedactsCredentials(t *testing.T) {
 // GIT_SSH_COMMAND through a shell as `<cmd> "$@"`, so the trailing "#"
 // comments out the host and command arguments git appends and the stand-in
 // simply sleeps. The timeout is injected rather than waiting out
-// refListTimeout, which keeps the test around a second.
+// refListTimeout, which keeps a passing run to a fraction of a second.
+//
+// The elapsed-time assertion is what gives the test teeth, and it only has
+// teeth because the stand-in sleeps far longer than the bound: with a one
+// second sleep the process ran to completion well inside the bound, so the
+// test passed even when the command was detached from its context entirely
+// and nothing was ever killed. Keep timeoutSleep >> maxElapsed.
 func TestListRefsNative_Timeout(t *testing.T) {
+	// The deadline the listing is given, and the wall-clock ceiling a run that
+	// honours it must stay under. maxElapsed leaves room for the WaitDelay the
+	// implementation applies to the output pipes after killing git; the
+	// stand-in outlives it by an order of magnitude, so a run that is not
+	// killed cannot slip under it.
+	const (
+		timeout    = 100 * time.Millisecond
+		maxElapsed = 3 * time.Second
+	)
+
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git binary not on PATH")
 	}
-	t.Setenv("GIT_SSH_COMMAND", "sleep 1 #")
+	t.Setenv("GIT_SSH_COMMAND", "sleep 30 #")
 
 	dep := domain.Dependency{Repository: "example.com/foo/bar"}
 	decision := auth.Decision{
@@ -238,7 +254,7 @@ func TestListRefsNative_Timeout(t *testing.T) {
 	}
 
 	start := time.Now()
-	refs, err := listRefsNative(dep, decision, 100*time.Millisecond)
+	refs, err := listRefsNative(dep, decision, timeout)
 	elapsed := time.Since(start)
 
 	if err == nil {
@@ -248,13 +264,17 @@ func TestListRefsNative_Timeout(t *testing.T) {
 		t.Errorf("refs must be nil on error, got %v", refs)
 	}
 	if !strings.Contains(err.Error(), "timed out") {
-		// A machine with no POSIX shell cannot run the sleeping stand-in: git
-		// then fails immediately with a spawn error instead of blocking, which
-		// says nothing either way about the deadline.
-		t.Skipf("ssh stand-in did not block, deadline not exercised: %v", err)
+		if elapsed < timeout {
+			// The failure landed before the deadline could have expired, so
+			// the stand-in never blocked: no POSIX sleep is reachable from
+			// git's shell on this machine and there is nothing to measure.
+			t.Skipf("ssh stand-in did not block, deadline not exercised: %v", err)
+		}
+		t.Fatalf("listing blocked past its deadline but did not report a timeout: %v", err)
 	}
-	if elapsed > refListWaitDelay {
-		t.Errorf("deadline took %s to fire, want well under the wait delay %s", elapsed, refListWaitDelay)
+	if elapsed > maxElapsed {
+		t.Errorf("listing took %s, want under %s: the stand-in sleeps 30s, "+
+			"so anything near that means the process was never killed", elapsed, maxElapsed)
 	}
 }
 
