@@ -298,10 +298,24 @@ func redactURLCredentials(s string) string {
 // unauthenticated host must fail fast rather than block the whole run on a
 // credential prompt nobody is there to answer.
 func gitSafeEnv() []string {
-	src := os.Environ()
-	out := make([]string, 0, len(src)+1)
-	for _, entry := range src {
+	return filterGitEnv(os.Environ())
+}
+
+// filterGitEnv is gitSafeEnv's pure half: it drops the tracing and prompting
+// variables from entries and appends GIT_TERMINAL_PROMPT=0.
+//
+// Names are matched case-insensitively. Windows resolves environment variable
+// names without regard to case and Git for Windows honours a lowercase
+// git_trace, but os.Environ reports whatever casing was used to set the
+// variable, so a case-sensitive match would pass the switch straight through
+// to the child. That matters beyond stderr: GIT_TRACE2_EVENT writes to a file
+// sink that redactURLCredentials never sees, so scrubbing stderr is not a
+// backstop for it.
+func filterGitEnv(entries []string) []string {
+	out := make([]string, 0, len(entries)+1)
+	for _, entry := range entries {
 		name, _, _ := strings.Cut(entry, "=")
+		name = strings.ToUpper(name)
 		if strings.HasPrefix(name, "GIT_TRACE") {
 			continue
 		}

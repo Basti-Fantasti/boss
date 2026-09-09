@@ -115,9 +115,16 @@ func buildNativeFixture(t *testing.T) nativeFixture {
 
 // TestListRefsNative_SeesAllBranchesAndTags is the regression test for the
 // silent main-branch fallback: a non-default branch must be discoverable
-// through the native path. The full ref set is asserted, not a subset, so that
-// dropping --heads/--tags or leaking a bare HEAD entry fails the test, and the
-// object ids are asserted so that a mangled SHA does too.
+// through the native path.
+//
+// The full ref set is asserted rather than a subset, which catches a mangled
+// SHA, a duplicate ref, and an extra or missing ref; the annotated tag pins
+// the tag-object-versus-peeled-commit distinction. It does not catch removal
+// of the --heads --tags flags, and no output-based fixture could: without them
+// ls-remote additionally advertises only HEAD, refs/notes/*, refs/pull/* and
+// refs/merge-requests/*, every one of which parseLsRemote's allowlist already
+// rejects, so the parsed set is identical either way. The flags are defence in
+// depth, not behaviour observable at this layer.
 func TestListRefsNative_SeesAllBranchesAndTags(t *testing.T) {
 	fixture := buildNativeFixture(t)
 	dep := domain.Dependency{Repository: "example.com/foo/bar"}

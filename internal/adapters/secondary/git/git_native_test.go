@@ -246,7 +246,7 @@ func TestGitSafeEnv(t *testing.T) {
 
 	for _, e := range env {
 		name, _, _ := strings.Cut(e, "=")
-		switch name {
+		switch strings.ToUpper(name) {
 		case "GIT_TRACE", "GIT_TRACE_PACKET", "GIT_TRACE2_EVENT", "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES":
 			t.Errorf("%q must not be inherited, got entry %q", name, e)
 		}
@@ -267,5 +267,47 @@ func TestGitSafeEnv(t *testing.T) {
 	}
 	if !keepFound {
 		t.Error("unrelated environment variables must be preserved")
+	}
+}
+
+// TestFilterGitEnv_CaseInsensitive is the regression test for a filter that
+// matched variable names case-sensitively. Windows resolves environment
+// variable names case-insensitively and Git for Windows honours a lowercase
+// git_trace, but os.Environ preserves whatever casing was used to set it, so a
+// case-sensitive filter passes the tracing switch straight through to the
+// child. git_trace2_event is the worst of them: it writes to a file sink that
+// redactURLCredentials never sees, so stderr scrubbing is no backstop.
+//
+// t.Setenv normalises names on Windows, so the filter is exercised directly
+// against synthetic entries rather than through the real environment.
+func TestFilterGitEnv_CaseInsensitive(t *testing.T) {
+	in := []string{
+		"git_trace=1",
+		"GIT_TRACE_PACKET=1",
+		"Git_Trace2_Event=C:/tmp/trace.json",
+		"git_trace2_event=/tmp/trace.json",
+		"Git_Curl_Verbose=1",
+		"git_redact_cookies=0",
+		"git_terminal_prompt=1",
+		"BOSSY_KEEP_ME=yes",
+		"GIT_SSH_COMMAND=ssh -i key",
+		"GITHUB_TOKEN=keep",
+	}
+
+	got := filterGitEnv(in)
+
+	want := []string{
+		"BOSSY_KEEP_ME=yes",
+		"GIT_SSH_COMMAND=ssh -i key",
+		"GITHUB_TOKEN=keep",
+		"GIT_TERMINAL_PROMPT=0",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("filterGitEnv:\n got %v\nwant %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("entry %d: got %q, want %q", i, got[i], want[i])
+		}
 	}
 }
