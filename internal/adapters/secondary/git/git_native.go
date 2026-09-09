@@ -271,6 +271,34 @@ func runCommand(cmd *exec.Cmd) error {
 	return nil
 }
 
+// ListRefsNative enumerates the dependency's remote heads and tags using the
+// system git binary. It is the SSH counterpart to the ref listing go-git does
+// inside GetVersions: go-git's SSH transport does not read ~/.ssh/config and
+// enforces strict known_hosts, so it cannot be relied on for internal hosts
+// that use config aliases, custom keys or non-standard ports.
+//
+// The URL is passed explicitly, so no worktree, .git pointer or prior clone is
+// required. Only stdout is parsed; git writes its "From <url>" banner to stderr.
+func ListRefsNative(dep domain.Dependency, decision auth.Decision) ([]*plumbing.Reference, error) {
+	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
+		return nil, err
+	}
+
+	//nolint:gosec,nolintlint // Git command with a resolved, validated remote URL
+	cmd := exec.Command("git", "ls-remote", "--heads", "--tags", decision.URL) // #nosec G204
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Env = os.Environ()
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git ls-remote failed for %s: %w\nStderr: %s",
+			dep.Repository, err, stderr.String())
+	}
+
+	return parseLsRemote(stdout.String()), nil
+}
+
 // parseLsRemote turns `git ls-remote` stdout ("<sha>\t<refname>" per line) into
 // plumbing references. Only refs/heads/* and refs/tags/* entries carrying a
 // full 40-digit hex SHA are returned. Peeled annotated-tag entries
