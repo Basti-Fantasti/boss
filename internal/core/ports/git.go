@@ -23,7 +23,10 @@ type GitRepository interface {
 	UpdateCache(ctx context.Context, dep domain.Dependency) (*git.Repository, error)
 
 	// GetVersions retrieves all versions (tags and branches) from a repository.
-	GetVersions(repository *git.Repository, dep domain.Dependency) []*plumbing.Reference
+	// A listing failure is returned rather than reported as an empty result:
+	// the caller cannot tell "no refs" from "could not list refs", and would
+	// silently fall back to the main branch.
+	GetVersions(repository *git.Repository, dep domain.Dependency) ([]*plumbing.Reference, error)
 
 	// GetMain returns the main or master branch configuration.
 	GetMain(repository *git.Repository) (*config.Branch, error)
@@ -57,7 +60,10 @@ type GitClient interface {
 	GetRepository(dep domain.Dependency) *git.Repository
 
 	// GetVersions returns all version tags for a repository.
-	GetVersions(repository *git.Repository, dep domain.Dependency) []*plumbing.Reference
+	// A listing failure is returned rather than reported as an empty result:
+	// the caller cannot tell "no refs" from "could not list refs", and would
+	// silently fall back to the main branch.
+	GetVersions(repository *git.Repository, dep domain.Dependency) ([]*plumbing.Reference, error)
 
 	// GetByTag returns a reference by tag name.
 	GetByTag(repository *git.Repository, tag string) *plumbing.Reference

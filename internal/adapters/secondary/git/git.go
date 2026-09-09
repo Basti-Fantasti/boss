@@ -3,6 +3,7 @@
 package gitadapter
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
@@ -75,15 +76,41 @@ func GetMain(repository *goGit.Repository) (*gitConfig.Branch, error) {
 }
 
 // GetVersions returns all versions (tags and branches) of the repository.
-func GetVersions(_ env.ConfigProvider, repository *goGit.Repository, dep domain.Dependency) []*plumbing.Reference {
-	var result = make([]*plumbing.Reference, 0)
-
+// SSH dependencies are listed through the system git binary; HTTPS
+// dependencies keep the embedded go-git path.
+//
+// A listing failure is returned, never swallowed: an empty result is
+// indistinguishable from "no matching version" to the caller, which would
+// silently fall back to the main branch.
+func GetVersions(
+	cfg env.ConfigProvider,
+	repository *goGit.Repository,
+	dep domain.Dependency,
+) ([]*plumbing.Reference, error) {
 	decision, err := auth.Resolve(dep)
 	if err != nil {
-		msg.Warn("⚠️ Fail to resolve auth for %s: %s", dep.Repository, err)
+		return nil, fmt.Errorf("resolve auth for %s: %w", dep.Repository, err)
 	}
 
-	err = repository.Fetch(&goGit.FetchOptions{
+	if decision.Transport == auth.TransportSSH {
+		return ListRefsNative(dep, decision)
+	}
+
+	return getVersionsEmbedded(cfg, repository, dep, decision), nil
+}
+
+// getVersionsEmbedded is the go-git ref listing used for HTTPS dependencies.
+// It mirrors the remote's refs into the cache so that branches appear under
+// refs/heads/* and are visible to repository.Branches().
+func getVersionsEmbedded(
+	_ env.ConfigProvider,
+	repository *goGit.Repository,
+	dep domain.Dependency,
+	decision auth.Decision,
+) []*plumbing.Reference {
+	var result = make([]*plumbing.Reference, 0)
+
+	err := repository.Fetch(&goGit.FetchOptions{
 		Force: true,
 		Prune: true,
 		Auth:  httpsAuth(decision),

@@ -40,7 +40,10 @@ func (c *DefaultGitClient) GetRepository(dep domain.Dependency) *goGit.Repositor
 }
 
 // GetVersions returns all version tags for a repository.
-func (c *DefaultGitClient) GetVersions(repository *goGit.Repository, dep domain.Dependency) []*plumbing.Reference {
+func (c *DefaultGitClient) GetVersions(
+	repository *goGit.Repository,
+	dep domain.Dependency,
+) ([]*plumbing.Reference, error) {
 	return git.GetVersions(c.config, repository, dep)
 }
 

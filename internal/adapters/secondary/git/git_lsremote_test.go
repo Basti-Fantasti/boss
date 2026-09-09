@@ -12,6 +12,7 @@ import (
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/core/services/auth"
+	"github.com/basti-fantasti/bossy/pkg/env"
 )
 
 // nativeFixture describes the on-disk repository built by buildNativeFixture:
@@ -254,5 +255,49 @@ func TestListRefsNative_Timeout(t *testing.T) {
 	}
 	if elapsed > refListWaitDelay {
 		t.Errorf("deadline took %s to fire, want well under the wait delay %s", elapsed, refListWaitDelay)
+	}
+}
+
+// TestGetVersions_SSHListingFailureIsAnError is the regression test for the
+// design mistake this change exists to prevent. GetVersions must not degrade a
+// failed SSH ref listing into an empty slice with a nil error: getVersion
+// would then find no match, getReferenceName would see a nil best match, and
+// the install would silently check out the main branch instead of the branch
+// the user asked for - the exact bug the transport dispatch is meant to fix.
+func TestGetVersions_SSHListingFailureIsAnError(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git binary not on PATH")
+	}
+
+	// Keep the higher-precedence auth layers out of the way so the dependency
+	// resolves through layer 3 (explicit SSH URL) whatever the ambient
+	// environment: a GitLab runner sets GITLAB_CI and would rewrite the dep to
+	// authenticated HTTPS, taking the embedded path instead.
+	t.Setenv("GITLAB_CI", "")
+	t.Setenv("BOSSY_AUTH_BOSSY_TEST_INVALID", "")
+	// Point the ssh transport at a binary that does not exist, so ls-remote
+	// fails immediately without touching the network, DNS, or the developer's
+	// ssh configuration.
+	t.Setenv("GIT_SSH_COMMAND", "bossy-test-no-such-ssh-binary")
+
+	dep := domain.Dependency{Repository: "git@bossy-test.invalid:no/such-repo"}
+
+	decision, err := auth.Resolve(dep)
+	if err != nil {
+		t.Fatalf("auth.Resolve: %v", err)
+	}
+	if decision.Transport != auth.TransportSSH {
+		t.Fatalf("dependency must resolve to SSH transport, got %s (layer %q)",
+			decision.Transport, decision.Layer)
+	}
+
+	// The nil repository is deliberate: the SSH path must not touch the go-git
+	// cache at all, so a panic here would itself be a dispatch failure.
+	refs, err := GetVersions(env.GlobalConfiguration(), nil, dep)
+	if err == nil {
+		t.Fatal("expected an error when the SSH ref listing fails, got nil")
+	}
+	if refs != nil {
+		t.Errorf("refs must be nil on error, got %v", refs)
 	}
 }

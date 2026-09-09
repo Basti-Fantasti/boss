@@ -600,7 +600,12 @@ func (ic *installContext) getVersion(
 		}
 	}
 
-	versions := git.GetVersions(ic.config, repository, dep)
+	versions, errVersions := git.GetVersions(ic.config, repository, dep)
+	if errVersions != nil {
+		// Never fall through to the main-branch fallback here: silently
+		// building the wrong branch is worse than not building.
+		msg.Die("❌ Could not list versions for '%s': %s", dep.Repository, errVersions)
+	}
 	constraints, err := domain.ParseConstraint(dep.GetVersion())
 	if err != nil {
 		warnMsg := fmt.Sprintf("Version constraint '%s' not supported: %s", dep.GetVersion(), err)
