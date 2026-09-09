@@ -59,8 +59,13 @@ func TestGitLabCI_OverridesSSHForm(t *testing.T) {
 	if strings.Contains(d.URL, "tok") {
 		t.Errorf("job token leaked into URL: %q", d.URL)
 	}
-	if d.Credential.User != "gitlab-ci-token" || d.Credential.Password != "tok" {
-		t.Errorf("Credential = %+v, want user \"gitlab-ci-token\" and the job token", d.Credential)
+	// Asserted field by field: CredentialSpec masks its password when
+	// formatted, so a %+v of the whole struct cannot show what went wrong.
+	if d.Credential.User != "gitlab-ci-token" {
+		t.Errorf("Credential.User = %q, want %q", d.Credential.User, "gitlab-ci-token")
+	}
+	if d.Credential.Password != "tok" {
+		t.Errorf("Credential.Password = %q, want the job token %q", d.Credential.Password, "tok")
 	}
 }
 

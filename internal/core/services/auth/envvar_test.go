@@ -15,8 +15,13 @@ func TestEnvVarHTTPSToken(t *testing.T) {
 	if d.Transport != TransportHTTPS {
 		t.Errorf("Transport = %v", d.Transport)
 	}
-	if d.Credential.User != "gitlab-ci-token" || d.Credential.Password != "abc123" {
-		t.Errorf("Credential = %+v", d.Credential)
+	// Asserted field by field: CredentialSpec masks its password when
+	// formatted, so a %+v of the whole struct cannot show what went wrong.
+	if d.Credential.User != "gitlab-ci-token" {
+		t.Errorf("Credential.User = %q, want %q", d.Credential.User, "gitlab-ci-token")
+	}
+	if d.Credential.Password != "abc123" {
+		t.Errorf("Credential.Password = %q, want %q", d.Credential.Password, "abc123")
 	}
 }
 

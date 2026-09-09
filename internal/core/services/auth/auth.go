@@ -4,6 +4,8 @@
 package auth
 
 import (
+	"fmt"
+
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/pkg/env"
 )
@@ -34,9 +36,42 @@ func (t Transport) String() string {
 // (zero value) means no credentials should be sent. SSH transports do
 // not use this — credentials come from ssh-agent / ~/.ssh/config via
 // the system git binary.
+//
+// Password is a live secret: the GitLab CI job token travels here rather
+// than in Decision.URL, precisely so it is not persisted into the cache's
+// remote URL. Nothing in Decision.URL's place masks it, so the String and
+// GoString methods below do that job instead. Read the field directly when
+// the value itself is needed; format the struct when it is not.
 type CredentialSpec struct {
 	User     string
 	Password string
+}
+
+// String masks the password so a CredentialSpec cannot carry a token into a
+// log line, a wrapped error or a test failure message. The user is left
+// visible: it is not secret, and it is what identifies the resolution layer
+// that produced the credential.
+//
+// fmt calls this for %v, %+v and %s, on the value itself and on the
+// Credential field of a Decision printed with any of them.
+func (c CredentialSpec) String() string {
+	return "{User:" + c.User + " Password:" + maskSecret(c.Password) + "}"
+}
+
+// GoString covers %#v, which ignores String entirely and would otherwise dump
+// the struct fields verbatim.
+func (c CredentialSpec) GoString() string {
+	return fmt.Sprintf("auth.CredentialSpec{User:%q, Password:%q}", c.User, maskSecret(c.Password))
+}
+
+// maskSecret renders a non-empty secret as a fixed placeholder. An empty
+// password stays empty rather than becoming "***", so "no credential" and
+// "credential withheld from the output" remain distinguishable.
+func maskSecret(s string) string {
+	if s == "" {
+		return ""
+	}
+	return "***"
 }
 
 // Decision is the output of Resolve: how bossy should clone the dep.

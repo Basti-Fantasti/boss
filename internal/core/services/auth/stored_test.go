@@ -23,8 +23,13 @@ func TestStored_Match(t *testing.T) {
 	if d.URL != "https://gitlab.mydomain.com/g/r" || d.Transport != TransportHTTPS {
 		t.Errorf("Decision = %+v", d)
 	}
-	if d.Credential.User != "alice" || d.Credential.Password != "hunter2" {
-		t.Errorf("Credential = %+v", d.Credential)
+	// Asserted field by field: CredentialSpec masks its password when
+	// formatted, so a %+v of the whole struct cannot show what went wrong.
+	if d.Credential.User != "alice" {
+		t.Errorf("Credential.User = %q, want %q", d.Credential.User, "alice")
+	}
+	if d.Credential.Password != "hunter2" {
+		t.Errorf("Credential.Password = %q, want %q", d.Credential.Password, "hunter2")
 	}
 }
 
