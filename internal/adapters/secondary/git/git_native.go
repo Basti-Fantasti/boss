@@ -104,7 +104,11 @@ func doClone(dep domain.Dependency, decision auth.Decision) error {
 
 	if env.GetGitShallow() {
 		msg.Debug("Using shallow clone for %s", dep.Repository)
-		args = append(args, "--depth", "1", "--single-branch")
+		// --no-single-branch is required: git implies --single-branch with
+		// --depth, which writes a refspec restricted to the default branch and
+		// makes every other branch permanently unreachable. Not even
+		// `fetch --unshallow` recovers them.
+		args = append(args, "--depth", "1", "--no-single-branch")
 	}
 
 	args = append(args, decision.URL, dirModule)

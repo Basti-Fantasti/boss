@@ -48,7 +48,8 @@ func CloneCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Rep
 	if env.GetGitShallow() {
 		msg.Debug("Using shallow clone for %s", dep.Repository)
 		cloneOpts.Depth = 1
-		cloneOpts.SingleBranch = true
+		// SingleBranch must stay false — see doClone for the reasoning.
+		cloneOpts.SingleBranch = false
 	}
 
 	repository, err := git.Clone(storageCache, worktreeFileSystem, cloneOpts)
