@@ -24,6 +24,37 @@ history, see the upstream repository.
 - Dep keys in the form `git@host:path` and `https://…` are accepted by the installer.
 - Global configuration is reloaded after `MigrateHome` so the first run after migration
   sees the new paths.
+- SSH dependencies now discover all branches and tags through the system `git` binary.
+  Previously go-git's SSH transport failed silently against hosts using `~/.ssh/config`
+  aliases, custom keys or non-standard ports, and version resolution fell back to the
+  main branch — so a dependency pinned to a non-default branch silently built the wrong
+  branch. A ref-listing failure is now a hard error instead of a fallback.
+- Shallow clones no longer restrict the remote refspec, so branch-pinned dependencies
+  resolve correctly. Caches created by earlier versions are repaired on next use. Note
+  that `fetch --unshallow` never recovered the missing branches — the refspec, not the
+  depth, was the limitation.
+- The GitLab CI job token is carried as a credential rather than embedded in the clone
+  URL, so it is neither written to the dependency cache on disk nor reused after expiry.
+  This fixes `401`/`403` failures on the second and subsequent jobs on shell runners,
+  where the cache persists between jobs. Tokens already persisted by earlier versions
+  are scrubbed on next update.
+
+### Security
+
+- Credentials embedded in a URL are redacted from git stderr before it reaches error
+  messages or debug logs.
+- Bossy's git invocations no longer inherit `GIT_TRACE*` or `GIT_CURL_VERBOSE`, which
+  would otherwise dump credentials to stderr and to trace2 file sinks. Matching is
+  case-insensitive — Windows environment variable names are case-insensitive, so a
+  lowercase `git_trace` previously bypassed the filter.
+
+### Changed — Git transport
+
+- `GetVersions` in the git port now returns `([]*plumbing.Reference, error)`.
+- `GIT_SSH_COMMAND` defaults to `ssh -o BatchMode=yes` when unset, so unattended runs
+  fail fast rather than blocking on an ssh prompt. This overrides `core.sshCommand` from
+  git config; export `GIT_SSH_COMMAND` to keep a custom wrapper in effect.
+- Native ref listing is bounded by a 60-second timeout.
 
 ### Added — SHA pinning
 
