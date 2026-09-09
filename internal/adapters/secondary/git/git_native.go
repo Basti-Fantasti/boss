@@ -4,6 +4,8 @@ package gitadapter
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/core/services/auth"
@@ -252,11 +255,16 @@ func runCommand(cmd *exec.Cmd) error {
 
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
-	// gitSafeEnv rather than os.Environ: doClone passes the remote URL as a
-	// command-line argument and the gitlab-ci auth layer bakes a CI job token
-	// into it, so an inherited GIT_TRACE would echo that token to stderr.
-	// GIT_TERMINAL_PROMPT=0 additionally keeps a clone or fetch against an
-	// unauthenticated host from blocking a non-interactive run forever.
+	// gitSafeEnv rather than os.Environ. The hang protection is the part with
+	// standing value: every caller of runCommand is gated on TransportSSH, so
+	// BatchMode keeps a first-contact host-key prompt or a passphrase prompt
+	// from blocking a non-interactive run forever.
+	//
+	// The credential hygiene is defence in depth, not a fix for a live leak:
+	// auth.Resolve only ever builds scp-form "git@host:path" URLs for SSH, and
+	// the gitlab-ci layer that does embed a job token resolves to HTTPS, which
+	// never reaches this runner. It costs nothing and holds the invariant if a
+	// future auth layer produces an SSH URL carrying userinfo.
 	cmd.Env = gitSafeEnv()
 
 	if err := cmd.Start(); err != nil {
@@ -288,28 +296,70 @@ var reURLCredentials = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*:)?//[^/\s]+@
 // substring with "***". git anonymizes credentials on some transports but not
 // all - file:// and ssh:// print them verbatim, and GIT_TRACE dumps the raw
 // command line regardless - so stderr must be scrubbed before it is wrapped
-// into an error that may reach a log. The gitlab-ci auth layer bakes a
-// CI_JOB_TOKEN straight into the URL, so this is a live secret rather than a
-// hypothetical one.
+// into an error that may reach a log.
+//
+// This is defence in depth rather than a live leak. Everything in this file is
+// reached only for TransportSSH, and the SSH URLs auth.Resolve builds are all
+// scp-form "git@host:path", which carries no userinfo for this pattern to
+// match. The gitlab-ci layer that does bake a CI_JOB_TOKEN into the URL
+// resolves to TransportHTTPS and so never lands here. The guard stays because
+// the invariant is one auth layer away from changing.
 func redactURLCredentials(s string) string {
 	return reURLCredentials.ReplaceAllString(s, "${1}//***@")
 }
 
-// gitSafeEnv returns the process environment with git's tracing switches
-// removed and interactive credential prompting disabled.
+// defaultSSHCommand is the ssh invocation used when the caller's environment
+// does not already specify one. BatchMode=yes is the only thing that actually
+// makes a native git operation fail fast: it turns off ssh's passphrase prompt
+// and forces StrictHostKeyChecking to refuse rather than ask on first contact.
+const defaultSSHCommand = "ssh -o BatchMode=yes"
+
+// gitSafeEnv returns the process environment prepared for a native git
+// invocation: tracing switches removed, and both prompt sources disabled.
 //
 // Tracing is dropped because GIT_TRACE and its relatives dump the full command
 // line - including any credentials baked into the remote URL - to stderr,
-// which is wrapped into returned errors and from there into logs. Prompting is
-// disabled because ref listing runs once per dependency during install: an
-// unauthenticated host must fail fast rather than block the whole run on a
-// credential prompt nobody is there to answer.
+// which is wrapped into returned errors and from there into logs.
+//
+// Prompting is disabled because ref listing and cloning run once per
+// dependency during install, and a prompt nobody is there to answer blocks the
+// whole run. The two prompt sources are not the same:
+//
+//   - GIT_TERMINAL_PROMPT=0 governs git's own credential prompt. That is the
+//     HTTPS path, so it does nothing for the callers in this file, all of
+//     which are gated on TransportSSH. It is set anyway because it is free and
+//     correct for any future HTTPS caller.
+//   - GIT_SSH_COMMAND is what matters here. The blocking prompts on the SSH
+//     path come from the child ssh process - a key passphrase when no agent is
+//     loaded, and StrictHostKeyChecking=ask on first contact with an internal
+//     host - and both are read from the console, so an empty stdin does not
+//     help. BatchMode=yes turns both into an immediate failure.
 func gitSafeEnv() []string {
 	return filterGitEnv(os.Environ())
 }
 
 // filterGitEnv is gitSafeEnv's pure half: it drops the tracing and prompting
-// variables from entries and appends GIT_TERMINAL_PROMPT=0.
+// variables from entries, appends GIT_TERMINAL_PROMPT=0, and supplies
+// defaultSSHCommand when the caller has not set GIT_SSH_COMMAND.
+//
+// A user-set GIT_SSH_COMMAND is preserved verbatim. Reading the developer's
+// own ssh setup is the entire reason the native path exists, so bossy defaults
+// that variable but never overrides it. The caveat is that an ssh wrapper
+// configured through git's core.sshCommand is lower precedence than the
+// environment variable and therefore is overridden; a user in that position
+// can export GIT_SSH_COMMAND to get it back.
+//
+// GIT_TERMINAL_PROMPT is stripped before being appended rather than simply
+// appended: execve passes duplicate names through unchanged and getenv returns
+// the first match, so an inherited GIT_TERMINAL_PROMPT=1 would shadow the
+// appended GIT_TERMINAL_PROMPT=0. Any refactor that routes this through a map
+// must keep that property.
+//
+// What is deliberately not filtered: GIT_DIR, GIT_WORK_TREE, GIT_SSH_COMMAND
+// and the global/system config variables. User configuration is trusted - the
+// native path exists precisely so ~/.ssh/config and friends are honoured - so
+// only the leak vectors (tracing) and the hang vectors (prompting) are
+// stripped.
 //
 // Names are matched case-insensitively. Windows resolves environment variable
 // names without regard to case and Git for Windows honours a lowercase
@@ -319,7 +369,8 @@ func gitSafeEnv() []string {
 // sink that redactURLCredentials never sees, so scrubbing stderr is not a
 // backstop for it.
 func filterGitEnv(entries []string) []string {
-	out := make([]string, 0, len(entries)+1)
+	out := make([]string, 0, len(entries)+2)
+	hasSSHCommand := false
 	for _, entry := range entries {
 		name, _, _ := strings.Cut(entry, "=")
 		name = strings.ToUpper(name)
@@ -327,12 +378,18 @@ func filterGitEnv(entries []string) []string {
 			continue
 		}
 		switch name {
-		case "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES", "GIT_TERMINAL_PROMPT":
+		case "GIT_CURL_VERBOSE", "GIT_TERMINAL_PROMPT":
 			continue
+		case "GIT_SSH_COMMAND":
+			hasSSHCommand = true
 		}
 		out = append(out, entry)
 	}
-	return append(out, "GIT_TERMINAL_PROMPT=0")
+	out = append(out, "GIT_TERMINAL_PROMPT=0")
+	if !hasSSHCommand {
+		out = append(out, "GIT_SSH_COMMAND="+defaultSSHCommand)
+	}
+	return out
 }
 
 // ListRefsNative enumerates the dependency's remote heads and tags using the
@@ -346,18 +403,52 @@ func filterGitEnv(entries []string) []string {
 // runCommand routes stdout to msg.Debug and discards it; ls-remote itself
 // writes nothing to stderr on success.
 func ListRefsNative(dep domain.Dependency, decision auth.Decision) ([]*plumbing.Reference, error) {
+	return listRefsNative(dep, decision, refListTimeout)
+}
+
+// refListTimeout bounds a single ref listing. Listing runs once per dependency
+// and serially, and a failure is terminal for the install, so an unbounded
+// hang would leave the user with no output at all rather than an error. The
+// budget is generous: ls-remote transfers no objects, so anything approaching
+// a minute means the host is unreachable rather than slow.
+const refListTimeout = 60 * time.Second
+
+// refListWaitDelay bounds how long Wait keeps waiting for the output pipes
+// after the context has killed git. Killing git does not kill the ssh process
+// it spawned, and that grandchild holds the write end of the stderr pipe, so
+// without a delay Wait would block on it and defeat the timeout.
+const refListWaitDelay = 5 * time.Second
+
+// listRefsNative is ListRefsNative with an injectable timeout so the deadline
+// can be exercised in tests without waiting out refListTimeout.
+func listRefsNative(
+	dep domain.Dependency,
+	decision auth.Decision,
+	timeout time.Duration,
+) ([]*plumbing.Reference, error) {
 	if err := requireGit(dep, hostFromURL(decision.URL)); err != nil {
 		return nil, err
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	//nolint:gosec,nolintlint // URL originates from auth.Resolve; not independently validated here
-	cmd := exec.Command("git", "ls-remote", "--heads", "--tags", decision.URL) // #nosec G204
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", "--heads", "--tags", decision.URL) // #nosec G204
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Env = gitSafeEnv()
+	cmd.WaitDelay = refListWaitDelay
 
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	// Checked before err: a killed process reports a generic exit status, and
+	// "timed out" is the diagnosis the user can act on.
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, fmt.Errorf("git ls-remote for %s timed out after %s (host unreachable or prompting for input)",
+			dep.Repository, timeout)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("git ls-remote failed for %s: %w\nStderr: %s",
 			dep.Repository, err, redactURLCredentials(stderr.String()))
 	}

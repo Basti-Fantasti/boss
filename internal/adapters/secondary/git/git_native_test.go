@@ -2,6 +2,7 @@
 package gitadapter
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -231,15 +232,15 @@ func TestRedactURLCredentials_SecretAbsent(t *testing.T) {
 	}
 }
 
-// TestGitSafeEnv verifies tracing variables are stripped and terminal
-// prompting is disabled, so a traced developer shell cannot leak a token into
-// stderr and an unauthenticated host fails fast instead of blocking.
+// TestGitSafeEnv verifies tracing variables are stripped and both prompt
+// sources are disabled, so a traced developer shell cannot leak a token into
+// stderr and an unauthenticated or unknown host fails fast instead of blocking
+// on a prompt nobody is there to answer.
 func TestGitSafeEnv(t *testing.T) {
 	t.Setenv("GIT_TRACE", "1")
 	t.Setenv("GIT_TRACE_PACKET", "1")
 	t.Setenv("GIT_TRACE2_EVENT", "/tmp/t")
 	t.Setenv("GIT_CURL_VERBOSE", "1")
-	t.Setenv("GIT_REDACT_COOKIES", "0")
 	t.Setenv("BOSSY_KEEP_ME", "yes")
 	t.Setenv("GIT_TERMINAL_PROMPT", "1")
 
@@ -248,7 +249,7 @@ func TestGitSafeEnv(t *testing.T) {
 	for _, e := range env {
 		name, _, _ := strings.Cut(e, "=")
 		switch strings.ToUpper(name) {
-		case "GIT_TRACE", "GIT_TRACE_PACKET", "GIT_TRACE2_EVENT", "GIT_CURL_VERBOSE", "GIT_REDACT_COOKIES":
+		case "GIT_TRACE", "GIT_TRACE_PACKET", "GIT_TRACE2_EVENT", "GIT_CURL_VERBOSE":
 			t.Errorf("%q must not be inherited, got entry %q", name, e)
 		}
 	}
@@ -271,6 +272,43 @@ func TestGitSafeEnv(t *testing.T) {
 	}
 }
 
+// TestGitSafeEnv_DefaultsSSHCommand covers the prompt source that actually
+// blocks on the SSH path. GIT_TERMINAL_PROMPT governs git's own credential
+// prompt, which is HTTPS-only, so without a BatchMode ssh command a first
+// contact with an internal host still stops on "Are you sure you want to
+// continue connecting?".
+func TestGitSafeEnv_DefaultsSSHCommand(t *testing.T) {
+	t.Setenv("GIT_SSH_COMMAND", "")
+	// t.Setenv cannot unset, so filter the empty entry out and re-run the
+	// pure half against an environment where the variable is truly absent.
+	entries := make([]string, 0)
+	for _, e := range os.Environ() {
+		if name, _, _ := strings.Cut(e, "="); strings.EqualFold(name, "GIT_SSH_COMMAND") {
+			continue
+		}
+		entries = append(entries, e)
+	}
+
+	got := filterGitEnv(entries)
+
+	want := "GIT_SSH_COMMAND=" + defaultSSHCommand
+	found := 0
+	for _, e := range got {
+		if strings.HasPrefix(e, "GIT_SSH_COMMAND=") {
+			found++
+			if e != want {
+				t.Errorf("got %q, want %q", e, want)
+			}
+		}
+	}
+	if found != 1 {
+		t.Errorf("GIT_SSH_COMMAND: got %d entries, want exactly 1", found)
+	}
+	if !strings.Contains(defaultSSHCommand, "BatchMode=yes") {
+		t.Errorf("default ssh command must disable prompting, got %q", defaultSSHCommand)
+	}
+}
+
 // TestFilterGitEnv_CaseInsensitive is the regression test for a filter that
 // matched variable names case-sensitively. Windows resolves environment
 // variable names case-insensitively and Git for Windows honours a lowercase
@@ -278,6 +316,10 @@ func TestGitSafeEnv(t *testing.T) {
 // case-sensitive filter passes the tracing switch straight through to the
 // child. git_trace2_event is the worst of them: it writes to a file sink that
 // redactURLCredentials never sees, so stderr scrubbing is no backstop.
+//
+// The case must be preserved for the entries that survive: GIT_SSH_COMMAND is
+// asserted verbatim here because bossy defaults it but must never override a
+// user-set value.
 //
 // t.Setenv normalises names on Windows, so the filter is exercised directly
 // against synthetic entries rather than through the real environment.
@@ -298,6 +340,10 @@ func TestFilterGitEnv_CaseInsensitive(t *testing.T) {
 	got := filterGitEnv(in)
 
 	want := []string{
+		// git_redact_cookies is deliberately absent from the filter: it makes
+		// git redact more, never less. The switch that turns redaction off is
+		// GIT_TRACE_REDACT=0, which the GIT_TRACE prefix rule already catches.
+		"git_redact_cookies=0",
 		"BOSSY_KEEP_ME=yes",
 		"GIT_SSH_COMMAND=ssh -i key",
 		"GITHUB_TOKEN=keep",

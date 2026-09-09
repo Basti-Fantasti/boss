@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/internal/core/services/auth"
@@ -210,5 +211,48 @@ func TestListRefsNative_ErrorRedactsCredentials(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), secret) {
 		t.Errorf("credential leaked into error: %v", err)
+	}
+}
+
+// TestListRefsNative_Timeout verifies the deadline actually fires. A listing
+// failure is terminal for the install, so an unbounded hang would leave the
+// user with no output at all rather than an error - strictly worse than the
+// error path.
+//
+// The ssh transport is replaced by a stand-in that blocks. git runs
+// GIT_SSH_COMMAND through a shell as `<cmd> "$@"`, so the trailing "#"
+// comments out the host and command arguments git appends and the stand-in
+// simply sleeps. The timeout is injected rather than waiting out
+// refListTimeout, which keeps the test around a second.
+func TestListRefsNative_Timeout(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git binary not on PATH")
+	}
+	t.Setenv("GIT_SSH_COMMAND", "sleep 1 #")
+
+	dep := domain.Dependency{Repository: "example.com/foo/bar"}
+	decision := auth.Decision{
+		URL:       "git@bossy-test.invalid:foo/bar",
+		Transport: auth.TransportSSH,
+	}
+
+	start := time.Now()
+	refs, err := listRefsNative(dep, decision, 100*time.Millisecond)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected an error when the listing exceeds its deadline, got nil")
+	}
+	if refs != nil {
+		t.Errorf("refs must be nil on error, got %v", refs)
+	}
+	if !strings.Contains(err.Error(), "timed out") {
+		// A machine with no POSIX shell cannot run the sleeping stand-in: git
+		// then fails immediately with a spawn error instead of blocking, which
+		// says nothing either way about the deadline.
+		t.Skipf("ssh stand-in did not block, deadline not exercised: %v", err)
+	}
+	if elapsed > refListWaitDelay {
+		t.Errorf("deadline took %s to fire, want well under the wait delay %s", elapsed, refListWaitDelay)
 	}
 }
