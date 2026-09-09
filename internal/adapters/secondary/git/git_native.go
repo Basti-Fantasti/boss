@@ -313,12 +313,17 @@ var reURLCredentials = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*:)?//[^/\s]+@
 // command line regardless - so stderr must be scrubbed before it is wrapped
 // into an error that may reach a log.
 //
+// Distinct from scrubTokenFromURL in git_embedded.go, which removes rather
+// than masks credentials, and only from a single well-formed URL on its way
+// back to disk.
+//
 // This is defence in depth rather than a live leak. Everything in this file is
 // reached only for TransportSSH, and the SSH URLs auth.Resolve builds are all
 // scp-form "git@host:path", which carries no userinfo for this pattern to
-// match. The gitlab-ci layer that does bake a CI_JOB_TOKEN into the URL
-// resolves to TransportHTTPS and so never lands here. The guard stays because
-// the invariant is one auth layer away from changing.
+// match. No auth layer puts a credential in the URL any more - the gitlab-ci
+// layer carries its job token in Decision.Credential, and resolves to
+// TransportHTTPS besides, so it never lands here. The guard stays because the
+// invariant is one auth layer away from changing.
 func redactURLCredentials(s string) string {
 	return reURLCredentials.ReplaceAllString(s, "${1}//***@")
 }

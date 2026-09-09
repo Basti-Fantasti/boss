@@ -112,3 +112,86 @@ func TestUpdateCacheEmbedded_RemoteURLOverridesPersistedURL(t *testing.T) {
 		t.Errorf("tag %s = %s, want %s", newTag, ref.Hash(), wantHash)
 	}
 }
+
+// TestScrubTokenFromURL verifies embedded basic-auth credentials are stripped
+// from a remote URL while the rest of the URL is preserved.
+func TestScrubTokenFromURL(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{
+			"https://gitlab-ci-token:abc123@gitlab.example.com/group/lib",
+			"https://gitlab.example.com/group/lib",
+		},
+		{
+			"https://gitlab.example.com/group/lib",
+			"https://gitlab.example.com/group/lib",
+		},
+		{
+			"git@gitlab.example.com:group/lib",
+			"git@gitlab.example.com:group/lib",
+		},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := scrubTokenFromURL(c.in); got != c.want {
+			t.Errorf("scrubTokenFromURL(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// TestUpdateCacheEmbedded_ScrubsPersistedToken covers the wiring rather than
+// the helper: a cache left behind by an older bossy carries the CI job token in
+// its persisted remote URL, and a cache update must clear it from disk.
+//
+// The fetch still succeeds because decision.URL overrides the stored remote, so
+// the scrub is observed in isolation from any fetch failure.
+func TestUpdateCacheEmbedded_ScrubsPersistedToken(t *testing.T) {
+	const secret = "glcbt-EXPIRED-JOB-TOKEN"
+
+	fixture := buildNativeFixture(t)
+	t.Setenv("BOSS_HOME", t.TempDir())
+
+	dep := domain.Dependency{Repository: "https://example.com/owner/scrub-fixture"}
+	decision := auth.Decision{URL: fixture.url, Transport: auth.TransportHTTPS}
+
+	if _, err := CloneCacheEmbedded(dep, decision); err != nil {
+		t.Fatalf("seed clone: %v", err)
+	}
+
+	repository := GetRepository(dep)
+	if repository == nil {
+		t.Fatal("GetRepository returned nil after seeding the cache")
+	}
+	cfg, err := repository.Config()
+	if err != nil {
+		t.Fatalf("read cache config: %v", err)
+	}
+	for _, remote := range cfg.Remotes {
+		for i := range remote.URLs {
+			remote.URLs[i] = "https://gitlab-ci-token:" + secret + "@gitlab.example.com/group/lib"
+		}
+	}
+	if errSet := repository.SetConfig(cfg); errSet != nil {
+		t.Fatalf("write cache config: %v", errSet)
+	}
+
+	if _, errUpdate := UpdateCacheEmbedded(dep, decision); errUpdate != nil {
+		t.Fatalf("UpdateCacheEmbedded: %v", errUpdate)
+	}
+
+	// Re-open from disk: the point is that the secret is gone from the file,
+	// not merely from the in-memory config the update happened to hold.
+	after, err := GetRepository(dep).Config()
+	if err != nil {
+		t.Fatalf("re-read cache config: %v", err)
+	}
+	for name, remote := range after.Remotes {
+		for _, u := range remote.URLs {
+			if strings.Contains(u, secret) {
+				t.Errorf("remote %q still holds the job token: %q", name, u)
+			}
+			if u != "https://gitlab.example.com/group/lib" {
+				t.Errorf("remote %q URL = %q, want the credential stripped and nothing else changed", name, u)
+			}
+		}
+	}
+}

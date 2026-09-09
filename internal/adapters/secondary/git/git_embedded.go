@@ -5,6 +5,7 @@ package gitadapter
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,54 @@ func httpsAuth(d auth.Decision) transport.AuthMethod {
 		return nil
 	}
 	return &httpAuth.BasicAuth{Username: d.Credential.User, Password: d.Credential.Password}
+}
+
+// scrubTokenFromURL removes embedded basic-auth credentials from an HTTP(S)
+// URL. Older bossy versions persisted the GitLab CI job token into the cache's
+// remote URL; this clears that secret from disk. Non-HTTP inputs and URLs
+// without credentials are returned unchanged.
+//
+// Distinct from redactURLCredentials in git_native.go: that one masks
+// credentials in free-form log and error text and must cope with the
+// scheme-relative fragments git prints, so it is regex-based and lossy. This
+// one rewrites a single well-formed URL that is about to be written back to
+// disk, so it parses.
+func scrubTokenFromURL(raw string) string {
+	if raw == "" || !strings.HasPrefix(raw, "http") {
+		return raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.User == nil {
+		return raw
+	}
+	u.User = nil
+	return u.String()
+}
+
+// scrubPersistedRemoteURLs clears any credential an older bossy baked into the
+// cache's persisted remote URLs. Best effort: a cache whose config cannot be
+// rewritten still fetches correctly, because every fetch supplies RemoteURL
+// explicitly and so never reads the stored URL.
+func scrubPersistedRemoteURLs(dep domain.Dependency, repository *git.Repository) {
+	cfg, err := repository.Config()
+	if err != nil {
+		return
+	}
+	changed := false
+	for _, remote := range cfg.Remotes {
+		for i, u := range remote.URLs {
+			if scrubbed := scrubTokenFromURL(u); scrubbed != u {
+				remote.URLs[i] = scrubbed
+				changed = true
+			}
+		}
+	}
+	if !changed {
+		return
+	}
+	if err := repository.SetConfig(cfg); err != nil {
+		msg.Debug("Could not scrub cached remote URL for %s: %s", dep.Repository, err)
+	}
 }
 
 // CloneCacheEmbedded clones the dependency repository to the cache using the embedded git implementation.
@@ -85,6 +134,8 @@ func UpdateCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Re
 			Mode: git.HardReset,
 		})
 	}
+
+	scrubPersistedRemoteURLs(dep, repository)
 
 	// RemoteURL overrides whatever was persisted in the cache's .git/config at
 	// clone time. This is what keeps a stale CI job token — or a changed host
