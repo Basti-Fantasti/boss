@@ -17,20 +17,47 @@ var (
 )
 
 // EnsureDependency ensures that the dependencies are added to the package.
+//
+// An argument that carries no explicit "@version" must not overwrite a version
+// already declared in bossy.json: `bossy update <dep>` names the dependency to
+// update, it does not redeclare it. Only a genuinely new dependency picks up
+// the minimal range, which is what `bossy install <newdep>` relies on.
 func EnsureDependency(pkg *domain.Package, args []string) {
 	for _, raw := range args {
-		key, ver, ok := normalizeDepArg(raw)
+		key, ver, explicit, ok := normalizeDepArg(raw)
 		if !ok {
 			continue
+		}
+		if !explicit {
+			if hasDependency(pkg, key) {
+				continue
+			}
+			ver = consts.MinimalDependencyVersion
 		}
 		pkg.AddDependency(key, ver)
 	}
 }
 
+// hasDependency reports whether pkg already declares key, using the same
+// case-insensitive comparison as Package.AddDependency so the two cannot
+// disagree about whether an entry exists.
+func hasDependency(pkg *domain.Package, key string) bool {
+	for existing := range pkg.Dependencies {
+		if strings.EqualFold(existing, key) {
+			return true
+		}
+	}
+	return false
+}
+
 // normalizeDepArg splits a user-supplied dependency argument into a canonical
-// dep key (matching how it is stored in bossy.json) and an optional version
-// suffix. Returns ok=false if the argument cannot be parsed.
-func normalizeDepArg(raw string) (key, version string, ok bool) {
+// dep key (matching how it is stored in bossy.json) and its version suffix.
+//
+// explicit reports whether the argument actually carried an "@version"; when it
+// is false, version is empty and callers must decide what a missing version
+// means for them rather than being handed a silent default. Returns ok=false if
+// the argument cannot be parsed.
+func normalizeDepArg(raw string) (key, version string, explicit, ok bool) {
 	// Defensive: reject alias-shaped prefixes ("name:...") where "name" matches
 	// the alias-name pattern but is not actually a configured alias. Without
 	// this guard, "unknown:foo/bar" would fall through to ParseDependency and
@@ -42,17 +69,19 @@ func normalizeDepArg(raw string) (key, version string, ok bool) {
 		prefix := raw[:colon]
 		if consts.AliasNamePattern.MatchString(prefix) {
 			if _, aliased := env.GlobalConfiguration().Aliases[prefix]; !aliased {
-				return "", "", false
+				return "", "", false, false
 			}
 		}
 	}
 
 	// Extract version suffix: "dep@version" but skip the leading "git@" of SSH URLs.
-	version = consts.MinimalDependencyVersion
+	// A trailing bare "@" is still stripped from the URL part, as it always was,
+	// but carries no version and so does not count as explicit.
 	urlPart := raw
 	if !strings.HasPrefix(raw, "git@") {
 		if at := strings.LastIndex(raw, "@"); at > 0 {
 			version = raw[at+1:]
+			explicit = version != ""
 			urlPart = raw[:at]
 		}
 	}
@@ -76,7 +105,7 @@ func normalizeDepArg(raw string) (key, version string, ok bool) {
 
 	parsed, err := auth.ParseDepURL(toparse)
 	if err != nil {
-		return "", "", false
+		return "", "", false, false
 	}
 	switch parsed.Kind {
 	case auth.URLKindSSH:
@@ -84,14 +113,14 @@ func normalizeDepArg(raw string) (key, version string, ok bool) {
 	case auth.URLKindHTTPS, auth.URLKindHostPath, auth.URLKindBare:
 		key = parsed.Canonical
 	}
-	return key, version, true
+	return key, version, explicit, true
 }
 
 // NormalizeDepKey returns the canonical dep key for a user-supplied argument,
 // matching what EnsureDependency would store in bossy.json. The version suffix
 // is discarded.
 func NormalizeDepKey(raw string) (string, bool) {
-	key, _, ok := normalizeDepArg(raw)
+	key, _, _, ok := normalizeDepArg(raw)
 	return key, ok
 }
 
