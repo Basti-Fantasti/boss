@@ -19,19 +19,19 @@ func installCmdRegister(root *cobra.Command) {
 		Long:    `This command install a new dependency on your project`,
 		Aliases: []string{"i", "add"},
 		Example: `  Add a new dependency:
-  boss install <pkg>
+  bossy install <pkg>
 
   Add a new version-specific dependency:
-  boss install <pkg>@<version>
+  bossy install <pkg>@<version>
 
   Install a dependency without add it from the bossy.json file:
-  boss install <pkg> --no-save
+  bossy install <pkg> --no-save
 
   Install using a specific compiler version:
-  boss install --compiler=35.0
+  bossy install --compiler=35.0
 
   Install using a specific platform:
-  boss install --platform=Win64`,
+  bossy install --platform=Win64`,
 		Run: func(_ *cobra.Command, args []string) {
 			installer.InstallModules(installer.InstallOptions{
 				Args:          args,

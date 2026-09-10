@@ -13,11 +13,11 @@ func upgradeCmdRegister(root *cobra.Command) {
 	var upgradeCmd = &cobra.Command{
 		Use:   "upgrade",
 		Short: "Upgrade the client version",
-		Example: `  Upgrade boss:
-  boss upgrade
+		Example: `  Upgrade bossy:
+  bossy upgrade
 
-  Upgrade boss with pre-release:
-  boss upgrade --dev`,
+  Upgrade bossy with pre-release:
+  bossy upgrade --dev`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return upgrade.BossUpgrade(preRelease)
 		},

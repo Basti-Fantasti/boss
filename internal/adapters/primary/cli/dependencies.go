@@ -38,16 +38,16 @@ func dependenciesCmdRegister(root *cobra.Command) {
 		Long:    "Print all project dependencies with or without version control",
 		Aliases: []string{"dep", "ls", "list", "ll", "la", "dependency"},
 		Example: `  Listing all dependencies:
-  boss dependencies
+  bossy dependencies
 
   Listing all dependencies with version control:
-  boss dependencies --version
+  bossy dependencies --version
 
   List package dependencies:
-  boss dependencies <pkg>
+  bossy dependencies <pkg>
 
   List package dependencies with version control:
-  boss dependencies <pkg> --version`,
+  bossy dependencies <pkg> --version`,
 		Run: func(_ *cobra.Command, _ []string) {
 			printDependencies(showVersion)
 		},

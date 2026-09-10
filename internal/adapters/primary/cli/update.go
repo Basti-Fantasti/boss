@@ -23,10 +23,10 @@ func updateCmdRegister(root *cobra.Command) {
 		Long:    `This command update installed dependencies`,
 		Aliases: []string{"up"},
 		Example: `  Update all dependencies:
-  boss update
+  bossy update
 
   Select specific dependencies to update:
-  boss update --select`,
+  bossy update --select`,
 		Run: func(_ *cobra.Command, args []string) {
 			if selectMode {
 				updateWithSelect()

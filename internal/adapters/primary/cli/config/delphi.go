@@ -61,7 +61,7 @@ func selectDelphiInteractive() {
 	installations := registryadapter.GetDetectedDelphis()
 	if len(installations) == 0 {
 		msg.Warn("No Delphi installations found in registry")
-		msg.Info("You can manually specify a path using: boss config delphi use <path>")
+		msg.Info("You can manually specify a path using: bossy config delphi use <path>")
 		return
 	}
 
@@ -161,7 +161,7 @@ func useDelphiVersion(pathOrIndex string) {
 				}
 			}
 			if !found {
-				msg.Die("Invalid index or version: %s. Use 'boss config delphi list' to see available options", pathOrIndex)
+				msg.Die("Invalid index or version: %s. Use 'bossy config delphi list' to see available options", pathOrIndex)
 			}
 		}
 	} else {
