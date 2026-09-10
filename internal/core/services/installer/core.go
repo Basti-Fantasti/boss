@@ -460,6 +460,13 @@ func (ic *installContext) reportInstallResult(depName, warning string) {
 	}
 }
 
+// shouldSkipDependency reports whether a dependency can be left alone. The lock
+// records the commit each dependency was installed at, and that commit is the
+// only claim about the module the lock can actually verify: a version string
+// says what was asked for, never what is on disk. So the skip decision is
+// "modules/<name> is at the locked commit", not "the locked version looks new
+// enough". A worktree someone moved by hand, or one left half-written by an
+// interrupted run, is reinstalled instead of silently built.
 func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
 	if utils.Contains(ic.options.ForceUpdate, dep.Name()) {
 		return false
@@ -474,24 +481,66 @@ func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
 		return false
 	}
 
+	if installed.Commit != "" {
+		return ic.worktreeIsAt(dep, installed.Commit)
+	}
+
+	return ic.lockedVersionSatisfies(dep, installed)
+}
+
+// worktreeIsAt reports whether the dependency's checked-out module sits on
+// commit. Anything that stops us confirming it — no module directory, no git
+// metadata, an unreadable HEAD — answers "no": reinstalling is always safe, and
+// an absent module is the ordinary first-install case on a machine that has the
+// lock but not the modules, not a fault worth reporting.
+func (ic *installContext) worktreeIsAt(dep domain.Dependency, commit string) bool {
+	moduleDir := filepath.Join(ic.modulesDir, dep.Name())
+	if _, err := os.Stat(moduleDir); err != nil {
+		msg.Debug("  📁 %s is not present at %s, installing", dep.Name(), moduleDir)
+		return false
+	}
+
+	repository, err := git.TryGetRepository(dep)
+	if err != nil {
+		msg.Debug("  📁 %s is not a readable repository (%s), installing", dep.Name(), err)
+		return false
+	}
+
+	head, err := repository.Head()
+	if err != nil {
+		msg.Debug("  📁 HEAD of %s could not be read (%s), installing", dep.Name(), err)
+		return false
+	}
+
+	if head.Hash().String() != commit {
+		msg.Debug("  🔀 %s is at %s but the lock records %s, installing",
+			dep.Name(), shortenSHA(head.Hash().String()), shortenSHA(commit))
+		return false
+	}
+
+	return true
+}
+
+// lockedVersionSatisfies is the fallback for lock entries written before the
+// commit was recorded. It compares version strings, which is all such an entry
+// offers.
+//
+// A version that is not a semantic version is a branch name or a raw commit
+// SHA. Both are supported ways to pin a dependency, so neither is an error:
+// there is simply nothing here to compare, and the honest answer is to install
+// the dependency and let the lock be rewritten with a commit. Reporting a
+// supported pin as a failure on every install is what this replaced.
+func (ic *installContext) lockedVersionSatisfies(dep domain.Dependency, installed domain.LockedDependency) bool {
 	depv := strings.NewReplacer("^", "", "~", "").Replace(dep.GetVersion())
 	requiredVersion, err := semver.NewVersion(depv)
 	if err != nil {
-		warnMsg := fmt.Sprintf("Error '%s' on get required version. Updating...", err)
-		if !ic.progress.IsEnabled() {
-			msg.Warn("  ⚠️ " + warnMsg)
-		}
-		ic.addWarning(fmt.Sprintf("%s: %s", dep.Name(), warnMsg))
+		msg.Debug("  📌 %s is pinned to %q, which is not a version range, installing", dep.Name(), dep.GetVersion())
 		return false
 	}
 
 	installedVersion, err := semver.NewVersion(installed.Version)
 	if err != nil {
-		warnMsg := fmt.Sprintf("Error '%s' on get installed version. Updating...", err)
-		if !ic.progress.IsEnabled() {
-			msg.Warn("  " + warnMsg)
-		}
-		ic.addWarning(fmt.Sprintf("%s: %s", dep.Name(), warnMsg))
+		msg.Debug("  📌 %s is locked at %q, which is not a version, installing", dep.Name(), installed.Version)
 		return false
 	}
 

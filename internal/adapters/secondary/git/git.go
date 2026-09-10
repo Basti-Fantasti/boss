@@ -180,16 +180,24 @@ func GetByTag(repository *goGit.Repository, shortName string) *plumbing.Referenc
 }
 
 func GetRepository(dep domain.Dependency) *goGit.Repository {
-	// GetRepository is used in places where we already have a cloned repo
-	// So we don't need config for EnsureCacheDir check
-	cache := makeStorageCacheWithoutEnsure(dep)
-	dir := osfs.New(filepath.Join(env.GetModulesDir(), dep.Name()))
-	repository, err := goGit.Open(cache, dir)
+	repository, err := TryGetRepository(dep)
 	if err != nil {
 		msg.Err("❌ Error on open repository %s: %s", dep.Repository, err)
 	}
 
 	return repository
+}
+
+// TryGetRepository opens a dependency's already-cloned repository and returns
+// the failure instead of reporting it. Callers that treat "not cloned yet" as a
+// routine answer rather than a fault use this; GetRepository is the reporting
+// wrapper for callers that expect the clone to be there.
+func TryGetRepository(dep domain.Dependency) (*goGit.Repository, error) {
+	// The repository is expected to exist already, so the cache directory is
+	// opened as-is rather than being created.
+	cache := makeStorageCacheWithoutEnsure(dep)
+	dir := osfs.New(filepath.Join(env.GetModulesDir(), dep.Name()))
+	return goGit.Open(cache, dir)
 }
 
 func Checkout(_ env.ConfigProvider, dep domain.Dependency, referenceName plumbing.ReferenceName) error {
