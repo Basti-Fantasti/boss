@@ -86,7 +86,7 @@ func DoInstall(config env.ConfigProvider, options InstallOptions, pkg *domain.Pa
 
 	if len(deps) == 0 {
 		msg.Info("📄 No dependencies to install")
-		return nil
+		return reconcileEmptyTree(options, pkg)
 	}
 
 	var progress *ProgressTracker
