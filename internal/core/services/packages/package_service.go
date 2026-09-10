@@ -113,8 +113,10 @@ func (s *PackageService) loadOrCreateLock(packagePath string) domain.PackageLock
 	return *lock
 }
 
-// getLockPath returns the lock file path for a given package path.
+// getLockPath returns the lock file path for a given package path. The lock
+// always lives next to the manifest under the canonical name, which is what
+// LockService.Save writes and what FileLockRepository migrates legacy locks to.
 func (s *PackageService) getLockPath(packagePath string) string {
 	dir := filepath.Dir(packagePath)
-	return filepath.Join(dir, "boss.lock")
+	return filepath.Join(dir, consts.FilePackageLock)
 }
