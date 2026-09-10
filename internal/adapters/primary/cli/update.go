@@ -103,10 +103,24 @@ func updateWithSelect() {
 	}
 
 	msg.Info("Updating %d dependencies...\n", len(selectedDeps))
-	installer.InstallModules(installer.InstallOptions{
+	installer.InstallModules(selectedUpdateOptions(selectedDeps))
+}
+
+// selectedUpdateOptions builds the install options for the dependencies picked
+// out of the `--select` checklist.
+//
+// Selecting a dependency is an update, so LockedVersion stays false and the
+// selection re-resolves against the remote — the same semantics as
+// `bossy update <dep>`. Replaying the lock would re-check-out the SHA already
+// recorded, which is exactly what the user asked not to happen.
+//
+// selectedDeps holds repository keys. Args narrows the run to the selection, so
+// the dependencies nobody picked are neither re-resolved nor reconciled away.
+func selectedUpdateOptions(selectedDeps []string) installer.InstallOptions {
+	return installer.InstallOptions{
 		Args:          selectedDeps,
-		LockedVersion: true,
+		LockedVersion: false,
 		NoSave:        false,
 		ForceUpdate:   selectedDeps,
-	})
+	}
 }

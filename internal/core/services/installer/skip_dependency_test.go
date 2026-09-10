@@ -231,7 +231,9 @@ func TestShouldSkip_GatesAreUnchanged(t *testing.T) {
 		lock := emptyLock()
 		lockAt(t, lock, dep, "1.0.0", hashA.String())
 		ic := newContext(t, lock, true)
-		ic.options = InstallOptions{ForceUpdate: []string{dep.Name()}}
+		// The repository key, not dep.Name(): see
+		// TestShouldSkip_ForceUpdateMatchesTheRepositoryKey.
+		ic.options = InstallOptions{ForceUpdate: []string{dep.Repository}}
 		if ic.shouldSkipDependency(dep) {
 			t.Error("a forced dependency was skipped")
 		}
@@ -306,4 +308,93 @@ func TestShouldSkip_LegacyLockNeedsTheModuleOnDisk(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestShouldSkip_ForceUpdateMatchesTheRepositoryKey pins the shape of the
+// ForceUpdate entries. Every producer of ForceUpdate — the `update --select`
+// picker is the only one — collects repository keys, the same strings that key
+// bossy.json and InstallOptions.Args. Matching them against the short module
+// name instead never fired, so selecting a dependency had no effect at all.
+//
+// The short name is also the wrong key on its own terms: two hosts can each
+// publish a "horse", and only the repository tells them apart.
+func TestShouldSkip_ForceUpdateMatchesTheRepositoryKey(t *testing.T) {
+	tests := []struct {
+		name        string
+		forceUpdate []string
+		wantSkip    bool
+	}{
+		{name: "repository key forces", forceUpdate: []string{fixtureRepoURL}, wantSkip: false},
+		{
+			name:        "repository key is matched case-insensitively",
+			forceUpdate: []string{strings.ToUpper(fixtureRepoURL)},
+			wantSkip:    false,
+		},
+		{
+			name:        "a bare name forces the dependency it expands to",
+			forceUpdate: []string{"github.com/hashload/horse"},
+			wantSkip:    true, // expands to a different host than the fixture
+		},
+		{name: "another repository does not force", forceUpdate: []string{"github.com/hashload/jhonson"}, wantSkip: true},
+		{name: "nothing forced", forceUpdate: nil, wantSkip: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			hashA := f.commit(t, "a.txt", "alpha")
+
+			dep := domain.ParseDependency(fixtureRepoURL, "^1.0.0")
+			lock := emptyLock()
+			lockAt(t, lock, dep, "1.0.0", hashA.String())
+
+			// Without ForceUpdate this is the happy path: worktree at the
+			// locked commit, so anything but a force means "skip".
+			if got := f.head(t); got != hashA {
+				t.Fatalf("precondition: worktree is on %s, want %s", got, hashA)
+			}
+
+			ic := newContext(t, lock, true)
+			ic.options = InstallOptions{ForceUpdate: tt.forceUpdate}
+			if got := ic.shouldSkipDependency(dep); got != tt.wantSkip {
+				t.Errorf("shouldSkipDependency = %v, want %v (ForceUpdate = %v, repository = %q)",
+					got, tt.wantSkip, tt.forceUpdate, dep.Repository)
+			}
+		})
+	}
+}
+
+// TestCollectDependencies_SelectionLeavesTheRestAlone is the other half of
+// `update --select`: the selected dependencies are the only ones the run
+// touches. Args carries the selection, so an unselected dependency is neither
+// re-resolved nor reconciled away.
+func TestCollectDependencies_SelectionLeavesTheRestAlone(t *testing.T) {
+	const (
+		horse   = "github.com/hashload/horse"
+		jhonson = "github.com/hashload/jhonson"
+	)
+
+	pkg := &domain.Package{Dependencies: map[string]string{
+		horse:   "^1.0.0",
+		jhonson: "^2.0.0",
+	}}
+
+	selected := []string{horse}
+	deps := collectDependenciesToInstall(pkg, selected)
+
+	if len(deps) != 1 {
+		t.Fatalf("collected %d dependencies from a selection of 1: %v", len(deps), deps)
+	}
+	if deps[0].Repository != horse {
+		t.Errorf("collected %q, want the selected %q", deps[0].Repository, horse)
+	}
+
+	if shouldReconcile(selectionOptions(selected)) {
+		t.Error("a targeted selection would reconcile, wiping the unselected dependency's module")
+	}
+}
+
+// selectionOptions is a shorthand for the options a selection produces.
+func selectionOptions(args []string) InstallOptions {
+	return InstallOptions{Args: args, ForceUpdate: args}
 }

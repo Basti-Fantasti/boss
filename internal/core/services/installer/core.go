@@ -468,7 +468,7 @@ func (ic *installContext) reportInstallResult(depName, warning string) {
 // enough". A worktree someone moved by hand, or one left half-written by an
 // interrupted run, is reinstalled instead of silently built.
 func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
-	if utils.Contains(ic.options.ForceUpdate, dep.Name()) {
+	if ic.isForceUpdated(dep) {
 		return false
 	}
 
@@ -495,6 +495,25 @@ func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
 	}
 
 	return ic.lockedVersionSatisfies(dep, installed)
+}
+
+// isForceUpdated reports whether dep was named on the forced-update list.
+//
+// ForceUpdate holds repository keys — the strings that key bossy.json, and the
+// same shape InstallOptions.Args carries. The short module name is not that
+// key: nothing produces it, and it cannot tell two hosts' "horse" apart. An
+// entry is accepted verbatim, or after the same normalisation Args gets, so a
+// bare name typed by a user resolves the way it does everywhere else.
+func (ic *installContext) isForceUpdated(dep domain.Dependency) bool {
+	for _, raw := range ic.options.ForceUpdate {
+		if strings.EqualFold(raw, dep.Repository) {
+			return true
+		}
+		if normalized, ok := NormalizeDepKey(raw); ok && strings.EqualFold(normalized, dep.Repository) {
+			return true
+		}
+	}
+	return false
 }
 
 // moduleIsPresent reports whether modules/<name> exists. An absent module is
