@@ -481,6 +481,15 @@ func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
 		return false
 	}
 
+	// The module directory is the one thing both branches below depend on and
+	// neither can infer: the object cache under $BOSS_HOME/cache survives a
+	// deleted modules/<name>, so a repository still opens and still reports the
+	// locked commit. Checking presence once, ahead of the branch, is what stops
+	// the commit path and the version path drifting apart again.
+	if !ic.moduleIsPresent(dep) {
+		return false
+	}
+
 	if installed.Commit != "" {
 		return ic.worktreeIsAt(dep, installed.Commit)
 	}
@@ -488,18 +497,24 @@ func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
 	return ic.lockedVersionSatisfies(dep, installed)
 }
 
-// worktreeIsAt reports whether the dependency's checked-out module sits on
-// commit. Anything that stops us confirming it — no module directory, no git
-// metadata, an unreadable HEAD — answers "no": reinstalling is always safe, and
-// an absent module is the ordinary first-install case on a machine that has the
-// lock but not the modules, not a fault worth reporting.
-func (ic *installContext) worktreeIsAt(dep domain.Dependency, commit string) bool {
+// moduleIsPresent reports whether modules/<name> exists. An absent module is
+// the ordinary first-install case on a machine that has the lock but not the
+// checkout, not a fault worth reporting.
+func (ic *installContext) moduleIsPresent(dep domain.Dependency) bool {
 	moduleDir := filepath.Join(ic.modulesDir, dep.Name())
 	if _, err := os.Stat(moduleDir); err != nil {
 		msg.Debug("  📁 %s is not present at %s, installing", dep.Name(), moduleDir)
 		return false
 	}
+	return true
+}
 
+// worktreeIsAt reports whether the dependency's checked-out module sits on
+// commit. It is only reached once moduleIsPresent has confirmed the module
+// directory exists. Anything that stops us confirming the commit — no git
+// metadata, an unreadable HEAD — answers "no": reinstalling is always safe and
+// is not a fault worth reporting.
+func (ic *installContext) worktreeIsAt(dep domain.Dependency, commit string) bool {
 	repository, err := git.TryGetRepository(dep)
 	if err != nil {
 		msg.Debug("  📁 %s is not a readable repository (%s), installing", dep.Name(), err)

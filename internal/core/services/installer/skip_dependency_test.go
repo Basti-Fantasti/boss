@@ -257,3 +257,53 @@ func TestShouldSkip_GatesAreUnchanged(t *testing.T) {
 		}
 	})
 }
+
+// TestShouldSkip_LegacyLockNeedsTheModuleOnDisk is the counterpart to
+// TestShouldSkip_MissingModuleIsNotSkipped for lock entries written before the
+// commit field existed. Such an entry offers nothing but a version string, and
+// a version string says what was asked for, never what is on disk. Any lock
+// produced by an older bossy looks like this, so trusting it on a clean CI
+// checkout skips the dependency, never creates modules/, and leaves nothing to
+// build — while reporting success.
+func TestShouldSkip_LegacyLockNeedsTheModuleOnDisk(t *testing.T) {
+	tests := []struct {
+		name          string
+		moduleOnDisk  bool
+		wantSkip      bool
+		wantNoWarning bool
+	}{
+		{name: "module present", moduleOnDisk: true, wantSkip: true},
+		{name: "module absent", moduleOnDisk: false, wantSkip: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+
+			// ^3.0.0 declared, 3.3.5 locked: satisfied on version strings alone,
+			// so the version comparison on its own would answer "skip".
+			dep := domain.ParseDependency(fixtureRepoURL, "^3.0.0")
+			lock := emptyLock()
+			lockAt(t, lock, dep, "3.3.5", "")
+
+			if !tt.moduleOnDisk {
+				if err := os.RemoveAll(f.dir); err != nil {
+					t.Fatalf("remove module dir: %v", err)
+				}
+			}
+			_, statErr := os.Stat(f.dir)
+			if present := statErr == nil; present != tt.moduleOnDisk {
+				t.Fatalf("precondition: module dir %s present = %v, want %v", f.dir, present, tt.moduleOnDisk)
+			}
+
+			ic := newContext(t, lock, true)
+			if got := ic.shouldSkipDependency(dep); got != tt.wantSkip {
+				t.Errorf("shouldSkipDependency = %v, want %v (module on disk = %v)",
+					got, tt.wantSkip, tt.moduleOnDisk)
+			}
+			if len(ic.warnings) != 0 {
+				t.Errorf("a legacy lock entry is not a fault, but it warned: %v", ic.warnings)
+			}
+		})
+	}
+}
