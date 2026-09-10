@@ -66,6 +66,20 @@ history, see the upstream repository.
   zoneinfo data such as `Buenos_Aires`, for one — pulled its whole directory
   onto the Delphi search path.
 
+- On Windows, bossy's `GIT_SSH_COMMAND` default silently changed which `ssh`
+  ran. Git executes that variable through its bundled shell, whose PATH puts
+  Git's own `usr/bin` first, so the bare word `ssh` resolved to the ssh inside
+  Git for Windows no matter what the process PATH said — while git left to
+  itself resolves `ssh` against the process PATH, which usually finds
+  Microsoft's `C:\Windows\System32\OpenSSH`. The two are linked against OpenSSL
+  and LibreSSL respectively and do not accept the same private keys, so a key
+  in the legacy PEM format turned into `error in libcrypto: unsupported` and
+  `Permission denied (publickey)` under bossy while `git clone` and `ssh` by
+  hand kept working. The default now names the ssh git itself would have run,
+  resolved against the same PATH.
+- A wrapper configured through git's `core.sshCommand` is no longer overridden
+  by bossy's default; `BatchMode=yes` is appended to it instead.
+
 ### Added — Search path scoping
 
 - `bossy.json` gains an optional `searchpaths` map restricting which

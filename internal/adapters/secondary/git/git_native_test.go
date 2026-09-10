@@ -4,6 +4,8 @@ package gitadapter
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -289,9 +291,10 @@ func TestGitSafeEnv_DefaultsSSHCommand(t *testing.T) {
 		entries = append(entries, e)
 	}
 
-	got := filterGitEnv(entries)
+	sshCommand := defaultSSHCommand()
+	got := filterGitEnv(entries, sshCommand)
 
-	want := "GIT_SSH_COMMAND=" + defaultSSHCommand
+	want := "GIT_SSH_COMMAND=" + sshCommand
 	found := 0
 	for _, e := range got {
 		if strings.HasPrefix(e, "GIT_SSH_COMMAND=") {
@@ -304,8 +307,8 @@ func TestGitSafeEnv_DefaultsSSHCommand(t *testing.T) {
 	if found != 1 {
 		t.Errorf("GIT_SSH_COMMAND: got %d entries, want exactly 1", found)
 	}
-	if !strings.Contains(defaultSSHCommand, "BatchMode=yes") {
-		t.Errorf("default ssh command must disable prompting, got %q", defaultSSHCommand)
+	if !strings.Contains(sshCommand, "BatchMode=yes") {
+		t.Errorf("default ssh command must disable prompting, got %q", sshCommand)
 	}
 }
 
@@ -337,7 +340,7 @@ func TestFilterGitEnv_CaseInsensitive(t *testing.T) {
 		"GITHUB_TOKEN=keep",
 	}
 
-	got := filterGitEnv(in)
+	got := filterGitEnv(in, "ssh -o BatchMode=yes")
 
 	want := []string{
 		// git_redact_cookies is deliberately absent from the filter: it makes
@@ -386,5 +389,68 @@ func TestRunCommand_ErrorRedactsCredentials(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), secret) {
 		t.Errorf("credential leaked into error: %v", err)
+	}
+}
+
+// TestResolveSSHProgram_UsesAnAbsolutePathFromPATH is the regression test for
+// a default of the bare word "ssh".
+//
+// Git runs GIT_SSH_COMMAND through its bundled sh, whose PATH puts Git's own
+// /usr/bin ahead of everything, so "ssh" there resolves to the ssh inside Git
+// for Windows regardless of the process PATH. Git left to itself resolves ssh
+// against the process PATH instead. On a Windows machine those are two
+// different programs linked against two different crypto libraries, and a
+// private key one accepts the other rejects with "error in libcrypto:
+// unsupported" - so the bare word silently changed which key formats worked.
+//
+// Naming the resolved path is what keeps the two in agreement.
+func TestResolveSSHProgram_UsesAnAbsolutePathFromPATH(t *testing.T) {
+	dir := t.TempDir()
+	program := filepath.Join(dir, "ssh")
+	if runtime.GOOS == "windows" {
+		program += ".exe"
+	}
+	if err := os.WriteFile(program, []byte("#!/bin/sh\n"), 0o700); err != nil {
+		t.Fatalf("write fake ssh: %v", err)
+	}
+	t.Setenv("PATH", dir)
+
+	got := resolveSSHProgram()
+
+	if got == fallbackSSHProgram {
+		t.Fatalf("resolveSSHProgram() returned the bare program name, want the resolved path")
+	}
+	unquoted := strings.Trim(got, `"`)
+	if !filepath.IsAbs(filepath.FromSlash(unquoted)) {
+		t.Errorf("resolveSSHProgram() = %q, want an absolute path", got)
+	}
+	if !strings.Contains(unquoted, filepath.ToSlash(dir)) {
+		t.Errorf("resolveSSHProgram() = %q, want it resolved inside %q", got, dir)
+	}
+}
+
+// A path from PATH can hold both backslashes and a space. GIT_SSH_COMMAND is
+// parsed with shell quoting rules, under which a backslash escapes the next
+// character and an unquoted space splits the argument, so neither survives
+// being passed through verbatim.
+func TestQuoteSSHProgram_SurvivesGitsShellParsing(t *testing.T) {
+	got := quoteSSHProgram(`C:\Program Files\Git\usr\bin\ssh.exe`)
+
+	want := `"C:/Program Files/Git/usr/bin/ssh.exe"`
+	if got != want {
+		t.Errorf("quoteSSHProgram() = %q, want %q", got, want)
+	}
+	if strings.Contains(got, `\`) {
+		t.Errorf("quoteSSHProgram() left a backslash in %q; git's parser reads it as an escape", got)
+	}
+}
+
+// TestResolveSSHProgram_FallsBackWhenPATHHasNoSSH keeps the failure readable:
+// a machine with no ssh at all should reach git's own error, not a bossy one.
+func TestResolveSSHProgram_FallsBackWhenPATHHasNoSSH(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	if got := resolveSSHProgram(); got != fallbackSSHProgram {
+		t.Errorf("resolveSSHProgram() = %q, want %q", got, fallbackSSHProgram)
 	}
 }
