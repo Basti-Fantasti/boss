@@ -18,10 +18,6 @@ checks out every dependency at the commit recorded in the lock, populates
 and browsing paths. That is the whole onboarding step; the IDE can be opened
 straight afterwards.
 
-If the run reports every dependency as `Skipped already installed` while
-`modules/` stays empty, the committed lock predates commit recording and has no
-`commit` fields. Run `bossy update` once and commit the rewritten lock.
-
 ### What belongs in source control
 
 Commit `bossy.json` and `bossy-lock.json`. Both are inputs to that first
@@ -182,10 +178,15 @@ Select dependencies to update (Space to select, Enter to confirm)::
 enter: select | tab: confirm | left: none | right: all| type to filter
 ```
 
-Two limits apply. The annotations compare version strings only, so a branch pin
-whose tip has moved still reads `up to date`; and the selected dependencies are
-re-installed from `bossy-lock.json` rather than re-resolved against the remote,
-so the picker does not currently move a pin. Name the dependency instead:
+Selecting a dependency does the same work as naming it on the command line: the
+version constraint is re-resolved against the remote and the lock is rewritten.
+Dependencies you leave unticked are not touched.
+
+Read the annotations with care. They compare version strings, not commits: a
+branch pin shows `up to date` whenever the branch name in `bossy.json` matches
+the one in the lock, however far the tip has moved since. Only tag ranges get a
+label that means anything. When you already know which dependency you are after,
+name it instead:
 
 ```sh
 bossy update horse
@@ -223,8 +224,5 @@ bossy uninstall horse
 ```
 
 The entry is dropped from `bossy.json`, `modules/horse` is deleted and the lock
-entry goes with it. Commit both files.
-
-Removing the *last* dependency is the exception: with nothing left to install,
-the reconciliation pass never runs, so `modules/<name>` and the lock entry
-survive. Delete them by hand when that happens.
+entry goes with it, including when it was the only dependency left. Commit both
+files.

@@ -150,9 +150,9 @@ Appending `@<version>` rewrites the manifest entry as well, which is how a
 dependency is switched between a branch and a tag.
 
 `bossy update --select` (or `-s`) opens an interactive checklist of the
-dependencies in `bossy.json`. The selected entries are re-installed from the
-lock rather than re-resolved, so the picker does not currently move a pin; name
-the dependency explicitly instead.
+dependencies in `bossy.json` and updates the ones you tick, leaving the rest
+untouched. Its annotations compare version strings rather than commits, so a
+branch pin always displays as `up to date`.
 
 Recipes for the common cases are in [`docs/workflows.md`](docs/workflows.md).
 

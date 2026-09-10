@@ -86,13 +86,14 @@ branch — are repaired on the next `bossy install`.
 
 ### Locks without commit SHAs
 
-A lock entry written by an older bossy has no `commit` field, and the skip
-decision then falls back to comparing version strings. If the recorded
-version already satisfies the constraint in `bossy.json`, `bossy install`
-reports the dependency as `Skipped already installed` and installs
-nothing, including on a clean CI checkout where `modules/` does not exist
-yet. Run `bossy update` once locally to fill in the SHAs, then commit the
-rewritten lock before a pipeline relies on it:
+A lock entry written by an older bossy has no `commit` field. Such an
+entry is installed rather than skipped, since a dependency missing from
+`modules/` is never treated as already installed, and the lock is
+rewritten with the SHA it resolved to. The pipeline builds, but not
+reproducibly: until an entry carries a `commit` it pins a version string,
+which is not enough to replay a branch pin. Run `bossy update` once
+locally and commit the rewritten lock so every entry carries a SHA before
+a pipeline depends on it:
 
 ```sh
 bossy update

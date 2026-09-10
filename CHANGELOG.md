@@ -38,6 +38,28 @@ history, see the upstream repository.
   This fixes `401`/`403` failures on the second and subsequent jobs on shell runners,
   where the cache persists between jobs. Tokens already persisted by earlier versions
   are scrubbed on next update.
+- The lock file was written to `bossy-lock.json` but read back from a hardcoded
+  `boss.lock`, so it was never loaded. `bossy install` re-resolved every dependency
+  against the remote exactly as `bossy update` does, and a committed lock had no effect
+  on what was built.
+- A dependency pinned to a raw commit SHA silently checked out `master`. Reference
+  resolution discarded the resolved hash and carried only its name forward, so the
+  checkout was handed the zero hash.
+- `bossy update <dep>` destroyed the version declared in `bossy.json`: it overwrote the
+  entry with `>0.0.0` and then rewrote that to the resolved tag, turning a branch pin
+  into a tag range. An argument carrying no explicit `@version` now leaves the declared
+  version alone.
+- An already-installed dependency is skipped only when the worktree is at the locked
+  commit, and never when `modules/<name>` is missing. A lock entry with no `commit`
+  field previously decided this on version strings alone, so the first clean checkout
+  against such a lock reported `Skipped already installed` and left nothing to build.
+  A branch or raw-SHA pin is also no longer reported as an error on every install.
+- `bossy update --select` had no effect on the dependencies picked from the checklist.
+  `ForceUpdate` was produced as repository keys and matched against short module names,
+  and the run replayed the lock instead of re-resolving. Selecting a dependency now does
+  the same work as naming it on the command line.
+- Uninstalling the last remaining dependency left its module directory and lock entry
+  on disk, because reconciliation was skipped whenever nothing was left to install.
 
 ### Security
 
