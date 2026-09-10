@@ -329,15 +329,15 @@ func (ic *installContext) ensureSingleModule(pkg *domain.Package, dep domain.Dep
 	}
 
 	repository := git.GetRepository(dep)
-	referenceName := ic.getReferenceName(pkg, dep, repository)
+	ref := ic.resolveReference(pkg, dep, repository)
 
-	if skip, err := ic.checkIfUpToDate(dep, depName, repository, referenceName); err != nil {
+	if skip, err := ic.checkIfUpToDate(dep, depName, repository, ref); err != nil {
 		return err
 	} else if skip {
 		return nil
 	}
 
-	return ic.installDependency(dep, depName, repository, referenceName)
+	return ic.installDependency(dep, depName, repository, ref)
 }
 
 func (ic *installContext) cloneDependency(dep domain.Dependency, depName string) error {
@@ -359,7 +359,7 @@ func (ic *installContext) checkIfUpToDate(
 	dep domain.Dependency,
 	depName string,
 	repository *goGit.Repository,
-	referenceName plumbing.ReferenceName,
+	ref *plumbing.Reference,
 ) (bool, error) {
 	ic.reportStatus(depName, "checking", "🔍 Checking version for")
 
@@ -382,9 +382,13 @@ func (ic *installContext) checkIfUpToDate(
 	}
 
 	currentRef := head.Name()
-	needsUpdate := ic.lockSvc.NeedUpdate(ic.rootLocked, dep, referenceName.Short(), ic.modulesDir)
+	needsUpdate := ic.lockSvc.NeedUpdate(ic.rootLocked, dep, ref.Name().Short(), ic.modulesDir)
 
-	if !needsUpdate && status.IsClean() && referenceName == currentRef {
+	// A pinned-commit reference is named after its version label, never after
+	// the ref currentRef reports for a detached HEAD, so this fast path only
+	// fires for tag and branch checkouts. Re-checking out a pinned commit is
+	// idempotent, so missing the skip costs work, not correctness.
+	if !needsUpdate && status.IsClean() && ref.Name() == currentRef {
 		ic.reportSkipped(depName, consts.StatusMsgUpToDate)
 		return true, nil
 	}
@@ -396,11 +400,11 @@ func (ic *installContext) installDependency(
 	dep domain.Dependency,
 	depName string,
 	repository *goGit.Repository,
-	referenceName plumbing.ReferenceName,
+	ref *plumbing.Reference,
 ) error {
 	ic.reportStatus(depName, "installing", "🔥 Installing")
 
-	if err := ic.checkoutAndUpdate(dep, repository, referenceName); err != nil {
+	if err := ic.checkoutAndUpdate(dep, repository, ref); err != nil {
 		ic.progress.SetFailed(depName, err)
 		return err
 	}
@@ -494,12 +498,16 @@ func (ic *installContext) shouldSkipDependency(dep domain.Dependency) bool {
 	return !installedVersion.LessThan(requiredVersion)
 }
 
-func (ic *installContext) getReferenceName(
+// resolveReference resolves a dependency's declared version into the reference
+// that should be checked out. The whole reference is returned, not just its
+// name: for a pinned commit the name carries the version label written into the
+// lock while the hash carries the commit to check out, and the two are not the
+// same string.
+func (ic *installContext) resolveReference(
 	pkg *domain.Package,
 	dep domain.Dependency,
-	repository *goGit.Repository) plumbing.ReferenceName {
+	repository *goGit.Repository) *plumbing.Reference {
 	bestMatch := ic.getVersion(dep, repository)
-	var referenceName plumbing.ReferenceName
 
 	if bestMatch == nil {
 		warnMsg := fmt.Sprintf("No matching version found for '%s' with constraint '%s'", dep.Repository, dep.GetVersion())
@@ -514,36 +522,39 @@ func (ic *installContext) getReferenceName(
 				msg.Warn("  ⚠️ %s: %s", dep.Name(), warnMsg)
 			}
 			ic.addWarning(fmt.Sprintf("%s: %s", dep.Name(), warnMsg))
-			return plumbing.NewBranchReferenceName(mainBranchReference.Name)
+			// A branch name: checkoutAndUpdate dispatches on the name's shape,
+			// so this takes the branch-checkout path and never reads the hash.
+			// ZeroHash is therefore the honest value here — we have not
+			// resolved a commit, and must not pretend we have.
+			return plumbing.NewHashReference(
+				plumbing.NewBranchReferenceName(mainBranchReference.Name), plumbing.ZeroHash)
 		}
 		msg.Die("❌ Could not find any suitable version or branch for dependency '%s'", dep.Repository)
 	}
 
-	referenceName = bestMatch.Name()
 	if dep.GetVersion() == consts.MinimalDependencyVersion {
-		pkg.Dependencies[dep.Repository] = "^" + referenceName.Short()
+		pkg.Dependencies[dep.Repository] = "^" + bestMatch.Name().Short()
 	}
 
-	return referenceName
+	return bestMatch
 }
 
 func (ic *installContext) checkoutAndUpdate(
 	dep domain.Dependency,
 	repository *goGit.Repository,
-	referenceName plumbing.ReferenceName,
+	ref *plumbing.Reference,
 ) error {
-	isHashRef := !referenceName.IsTag() && !referenceName.IsBranch() && !referenceName.IsRemote()
+	referenceName := ref.Name()
+	isHashRef := isHashReference(referenceName)
 	var err error
-	//nolint:nestif // Two-branch dispatch on hash vs ref with shared progress reporting
 	if isHashRef {
+		// Take the commit from the reference, never from its name: the name is
+		// the version label destined for the lock (a branch name, a tag, or the
+		// SHA itself) and only the hash is guaranteed to be the commit.
 		if !ic.progress.IsEnabled() {
-			short := referenceName.Short()
-			if len(short) > 7 {
-				short = short[:7]
-			}
-			msg.Debug("  📌 %s pinned to %s", dep.Name(), short)
+			msg.Debug("  📌 %s pinned to %s", dep.Name(), shortenSHA(ref.Hash().String()))
 		}
-		err = ic.checkoutHashWithDeepen(dep, plumbing.NewHash(referenceName.Short()), referenceName.Short())
+		err = ic.checkoutHashWithDeepen(dep, ref.Hash(), ref.Hash().String())
 	} else {
 		if !ic.progress.IsEnabled() {
 			msg.Debug("  🔍 Checking out %s to %s", dep.Name(), referenceName.Short())
@@ -584,15 +595,21 @@ func (ic *installContext) getVersion(
 	dep domain.Dependency,
 	repository *goGit.Repository,
 ) *plumbing.Reference {
-	// Raw SHA in bossy.json — terminal, skip resolution.
+	// Raw SHA in bossy.json — terminal, skip resolution. The name doubles as
+	// the version label recorded in the lock, and for a raw-SHA pin the SHA
+	// itself is the right label.
 	if domain.IsGitSHA(dep.GetVersion()) {
-		return plumbing.NewHashReference(plumbing.HEAD, plumbing.NewHash(dep.GetVersion()))
+		return plumbing.NewHashReference(
+			plumbing.ReferenceName(dep.GetVersion()), plumbing.NewHash(dep.GetVersion()))
 	}
 
 	if ic.useLockedVersion {
 		lockedDependency := ic.rootLocked.GetInstalled(dep)
 		if lockedDependency.Commit != "" {
-			return plumbing.NewHashReference(plumbing.HEAD, plumbing.NewHash(lockedDependency.Commit))
+			// Name keeps the declared version (e.g. "develop") so replaying the
+			// lock does not rewrite the label; the hash carries the pin.
+			return plumbing.NewHashReference(
+				plumbing.ReferenceName(lockedDependency.Version), plumbing.NewHash(lockedDependency.Commit))
 		}
 		if tag := git.GetByTag(repository, lockedDependency.Version); tag != nil &&
 			lockedDependency.Version != dep.GetVersion() {
@@ -739,4 +756,21 @@ func isObjectNotFound(err error) bool {
 	}
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "unknown revision") || strings.Contains(msg, "object not found")
+}
+
+// isHashReference reports whether a resolved reference must be checked out by
+// commit hash rather than by name. Tags, branches and remote-tracking refs are
+// checked out by name; anything else is a pinned commit whose name is only a
+// version label for the lock file.
+func isHashReference(name plumbing.ReferenceName) bool {
+	return !name.IsTag() && !name.IsBranch() && !name.IsRemote()
+}
+
+// shortenSHA abbreviates a full commit hash for debug output, leaving anything
+// shorter (a branch or tag label) untouched.
+func shortenSHA(s string) string {
+	if len(s) > 7 {
+		return s[:7]
+	}
+	return s
 }

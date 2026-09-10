@@ -117,8 +117,8 @@ func TestGetVersion_RawSHAFastPath(t *testing.T) {
 	if got := ref.Hash().String(); got != sha {
 		t.Errorf("Hash = %q, want %q", got, sha)
 	}
-	if ref.Name() != plumbing.HEAD {
-		t.Errorf("Name = %q, want HEAD", ref.Name())
+	if got := ref.Name().Short(); got != sha {
+		t.Errorf("Name = %q, want the SHA itself as the lock version label", got)
 	}
 }
 
@@ -191,7 +191,7 @@ func TestGetVersion_LockedCommitFastPath(t *testing.T) {
 	if got := ref.Hash().String(); got != sha {
 		t.Errorf("Hash = %q, want %q", got, sha)
 	}
-	if ref.Name() != plumbing.HEAD {
-		t.Errorf("Name = %q, want HEAD", ref.Name())
+	if got := ref.Name().Short(); got != "1.2.3" {
+		t.Errorf("Name = %q, want the locked version label %q", got, "1.2.3")
 	}
 }
