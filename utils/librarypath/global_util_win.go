@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/pkg/consts"
 	"github.com/basti-fantasti/bossy/pkg/env"
 	"github.com/basti-fantasti/bossy/pkg/msg"
@@ -21,7 +22,7 @@ const SearchPathRegistry = "Search Path"
 const BrowsingPathRegistry = "Browsing Path"
 
 // updateGlobalLibraryPath updates the global library path
-func updateGlobalLibraryPath() {
+func updateGlobalLibraryPath(pkg *domain.Package) {
 	ideVersion := bossRegistry.GetCurrentDelphiVersion()
 	if ideVersion == "" {
 		msg.Err("❌ Version not found for path %s", env.GlobalConfiguration().DelphiPath)
@@ -57,7 +58,7 @@ func updateGlobalLibraryPath() {
 		}
 
 		splitPaths := strings.Split(paths, ";")
-		newSplitPaths := GetNewPaths(splitPaths, true, env.GetCurrentDir())
+		newSplitPaths := GetNewPaths(pkg, splitPaths, true, env.GetCurrentDir())
 		newPaths := strings.Join(newSplitPaths, ";")
 		err = delphiPlatform.SetStringValue(SearchPathRegistry, newPaths)
 		if err != nil {

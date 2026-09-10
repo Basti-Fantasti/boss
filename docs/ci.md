@@ -4,6 +4,58 @@ This document covers running `bossy install` inside a CI runner. The
 common case — GitLab Runner pulling private dependencies from the same
 GitLab instance — needs zero configuration.
 
+## One-time setup on a Windows build server
+
+A shell runner needs bossy installed once on the machine, under the
+account the runner service uses. Everything below is done as that
+account — usually not the account you log in with.
+
+**1. Copy the binary.** Put `bossy.exe` somewhere on PATH for the runner
+account, for example `C:\tools\bossy\bossy.exe`. There is no installer
+and nothing to register.
+
+**2. Confirm the runner account can see Delphi.**
+
+```powershell
+C:\tools\bossy\bossy.exe config delphi list
+```
+
+Expected output is one line per installed platform:
+
+```
+Installations found:
+  [0] 37.0 (Win32) (current)
+  [1] 37.0 (Win64)
+```
+
+This is the step worth doing carefully. Delphi registers itself under
+`HKEY_CURRENT_USER`, so an installation visible to your desktop session
+is invisible to the runner account. An empty list here means bossy cannot
+compile packages in CI, and the failure will otherwise surface much later
+as a confusing build error.
+
+The first run also installs bossy's `bpl-identifier` helper into
+`%USERPROFILE%\.bossy`, so it needs network access to github.com. A
+`Failed to save build order` warning during that first run is harmless.
+
+**3. Nothing else.** In particular:
+
+- No `bossy auth set`. GitLab CI credentials are detected from the job
+  environment — see the next section.
+- No SSH keys, no `ssh-agent`, no `~/.ssh/config`, even for dependencies
+  declared as `git@gitlab.mydomain.com:...`.
+- No global `bossy init`. Dependencies are resolved per project, in the
+  job's checkout directory.
+
+The dependency cache lands in `%USERPROFILE%\.bossy\cache` and persists
+between jobs, which is what you want — see [Shell runners](#shell-runners).
+
+### Upgrading bossy on the server
+
+Replace `bossy.exe` and run `bossy config delphi list` again. The cache
+format is stable across fork versions; there is nothing to migrate and no
+need to clear `%USERPROFILE%\.bossy`.
+
 ## GitLab CI: zero-config
 
 A minimal `.gitlab-ci.yml` that builds a Delphi project with private

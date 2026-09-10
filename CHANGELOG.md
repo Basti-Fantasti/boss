@@ -61,6 +61,23 @@ history, see the upstream repository.
 - Uninstalling the last remaining dependency left its module directory and lock entry
   on disk, because reconciliation was skipped whenever nothing was left to install.
 
+- Directory matching for search-path generation compared unescaped dots, so any
+  extensionless file whose name merely ended in the letters of an extension —
+  zoneinfo data such as `Buenos_Aires`, for one — pulled its whole directory
+  onto the Delphi search path.
+
+### Added — Search path scoping
+
+- `bossy.json` gains an optional `searchpaths` map restricting which
+  directories of a dependency reach the compiler search path. Without it bossy
+  walks a dependency's whole tree, which for a repository shipping samples and
+  unit tests alongside its library (delphimvcframework contributes roughly 190
+  directories) can push `dcc`'s command line past the Windows 32767-character
+  limit and fail the build with `MSB6003 ... The filename or extension is too
+  long`. Keys accept either the full dependency reference or the bare module
+  name; paths are relative to the module directory and still walked
+  recursively.
+
 ### Security
 
 - Credentials embedded in a URL are redacted from git stderr before it reaches error

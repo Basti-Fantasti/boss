@@ -533,6 +533,9 @@ Here's a comprehensive example showing all available fields:
     "MyProject.dproj",
     "MyPackage.dproj"
   ],
+  "searchpaths": {
+    "github.com/danieleteti/delphimvcframework": ["sources", "lib/loggerpro"]
+  },
   "dependencies": {
     "github.com/HashLoad/horse": "^3.0.0",
     "github.com/HashLoad/jhonson": "~2.1.0",
@@ -591,6 +594,32 @@ Here's a comprehensive example showing all available fields:
   ```json
   "browsingpath": "src/;src/controllers/;src/models/"
   ```
+
+- **`searchpaths`** (optional): Restricts which directories of a dependency
+  reach the compiler search path.
+
+  By default bossy walks a dependency's whole tree and adds every directory
+  that holds source. That is right for a flat library, and wrong for a
+  repository that ships samples and unit tests next to its library —
+  delphimvcframework contributes around 190 directories that way, most of
+  them demo projects. Naming the directories that hold the library fixes it:
+
+  ```json
+  "searchpaths": {
+    "github.com/danieleteti/delphimvcframework": ["sources", "lib/loggerpro"]
+  }
+  ```
+
+  Paths are relative to the module directory and are still walked
+  recursively, so a nested layout needs only its root listed. Keys may be
+  the full dependency reference as written in `dependencies`, or the bare
+  module name (`delphimvcframework`). A path that does not exist is skipped
+  with a warning.
+
+  Beyond tidiness this can decide whether a project builds at all: MSBuild
+  passes the search path to `dcc` on the command line, and Windows caps that
+  at 32767 characters. Overrun it and the build fails with `MSB6003 ... The
+  filename or extension is too long`, which names nothing useful.
 
 #### Build Configuration
 
