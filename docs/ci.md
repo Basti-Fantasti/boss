@@ -206,6 +206,46 @@ care: it removes the per-pair scoping.
 
 GitLab docs: <https://docs.gitlab.com/ee/ci/jobs/ci_job_token.html>
 
+### `error in libcrypto: unsupported`, then `Permission denied (publickey)`
+
+Symptom, on Windows, where `ssh -T git@gitlab.mydomain.com` and a plain
+`git clone` both work:
+
+```
+Load key "c:/Users/runner/.ssh/id_gitlab": error in libcrypto: unsupported
+git@gitlab.mydomain.com: Permission denied (publickey).
+```
+
+A Windows machine with Git for Windows installed has two `ssh.exe`:
+Microsoft's in `C:\Windows\System32\OpenSSH`, linked against LibreSSL, and
+Git's own in `C:\Program Files\Git\usr\bin`, linked against OpenSSL 3. They do
+not accept the same private keys — OpenSSL 3 rejects keys in the legacy PEM
+format that LibreSSL still reads, with exactly that message.
+
+Which one runs depends on how it was invoked. Git left to itself resolves
+`ssh` against the Windows PATH; anything named in `GIT_SSH_COMMAND` is run
+through Git's bundled shell, whose PATH puts Git's own `usr/bin` first. Bossy
+sets `GIT_SSH_COMMAND` to apply `BatchMode=yes`, and until it resolved the
+path first that switched the binary underneath you.
+
+Fix it in the key, which removes the dependency on which ssh runs:
+
+```powershell
+ssh-keygen -p -f $env:USERPROFILE\.ssh\id_gitlab
+```
+
+Modern `ssh-keygen` rewrites the file in the current OpenSSH format, which
+both binaries read. The public key and the fingerprint do not change, so
+nothing needs re-registering in GitLab.
+
+To pin the binary instead, set `GIT_SSH_COMMAND` for the account — bossy
+preserves a value it did not set:
+
+```powershell
+[Environment]::SetEnvironmentVariable(
+  "GIT_SSH_COMMAND", "C:/Windows/System32/OpenSSH/ssh.exe", "User")
+```
+
 ### `SSH cloning requires git to be installed and on PATH`
 
 The runner image does not have `git`. Install it (`apt-get install -y git`

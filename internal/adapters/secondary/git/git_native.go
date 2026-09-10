@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
@@ -409,11 +410,80 @@ func redactURLCredentials(s string) string {
 	return reURLCredentials.ReplaceAllString(s, "${1}//***@")
 }
 
-// defaultSSHCommand is the ssh invocation used when the caller's environment
-// does not already specify one. BatchMode=yes is the only thing that actually
+// batchModeOption is the only ssh option bossy imposes. It is what actually
 // makes a native git operation fail fast: it turns off ssh's passphrase prompt
 // and forces StrictHostKeyChecking to refuse rather than ask on first contact.
-const defaultSSHCommand = "ssh -o BatchMode=yes"
+const batchModeOption = " -o BatchMode=yes"
+
+// fallbackSSHProgram is used when ssh cannot be found on PATH. Naming it and
+// letting the run fail with git's own message beats inventing a better error
+// for a machine that has no ssh at all.
+const fallbackSSHProgram = "ssh"
+
+// resolveSSHProgram returns the ssh bossy should name in GIT_SSH_COMMAND.
+//
+// Naming a bare "ssh" is not the same as letting git find ssh itself, and on
+// Windows the difference decides which binary runs. Git executes
+// GIT_SSH_COMMAND through its bundled sh, whose PATH puts Git's own
+// /usr/bin first, so "ssh" resolves to the ssh shipped inside Git for Windows
+// no matter what the process PATH says. With no GIT_SSH_COMMAND set, git
+// resolves ssh against the process PATH instead, which on most Windows
+// machines finds C:\Windows\System32\OpenSSH first.
+//
+// Those two are different programs linked against different crypto libraries -
+// Git's against OpenSSL, Microsoft's against LibreSSL - and they do not accept
+// the same private keys. A key in the legacy PEM format loads under LibreSSL
+// and is rejected by OpenSSL 3 with "error in libcrypto: unsupported", so
+// merely setting GIT_SSH_COMMAND could turn a working checkout into
+// "Permission denied (publickey)".
+//
+// Resolving ssh here, against the same PATH git would have used, keeps bossy's
+// choice of binary identical to git's own while still applying BatchMode.
+func resolveSSHProgram() string {
+	path, err := exec.LookPath(fallbackSSHProgram)
+	if err != nil {
+		msg.Debug("ssh not found on PATH, leaving resolution to git: %v", err)
+		return fallbackSSHProgram
+	}
+	return quoteSSHProgram(path)
+}
+
+// quoteSSHProgram renders a resolved ssh path for GIT_SSH_COMMAND, which git
+// parses with shell quoting rules. Backslashes are escapes to that parser, so
+// a Windows path has to be given with forward slashes, and the quotes cover
+// the space in "C:/Program Files/...".
+func quoteSSHProgram(path string) string {
+	return `"` + strings.ReplaceAll(path, `\`, "/") + `"`
+}
+
+// configuredSSHCommand returns git's own core.sshCommand, or "" when none is
+// configured or git cannot be run.
+//
+// GIT_SSH_COMMAND outranks core.sshCommand, so supplying a default without
+// looking would override a wrapper the user deliberately configured - the very
+// setup the native path exists to honour. The result is memoised because it is
+// otherwise re-read once per dependency, and an ssh wrapper does not change
+// mid-run.
+//
+//nolint:gochecknoglobals // memoised process-wide lookup; the value cannot change mid-run
+var configuredSSHCommand = sync.OnceValue(func() string {
+	out, err := exec.Command("git", "config", "--get", "core.sshCommand").Output()
+	if err != nil {
+		// Exit status 1 simply means "not set", which is the common case.
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+})
+
+// defaultSSHCommand builds the GIT_SSH_COMMAND bossy supplies when the caller
+// set none: the user's configured ssh wrapper if there is one, otherwise the
+// ssh git itself would have run, in both cases with BatchMode added.
+func defaultSSHCommand() string {
+	if configured := configuredSSHCommand(); configured != "" {
+		return configured + batchModeOption
+	}
+	return resolveSSHProgram() + batchModeOption
+}
 
 // gitSafeEnv returns the process environment prepared for a native git
 // invocation: tracing switches removed, and both prompt sources disabled.
@@ -436,7 +506,7 @@ const defaultSSHCommand = "ssh -o BatchMode=yes"
 //     host - and both are read from the console, so an empty stdin does not
 //     help. BatchMode=yes turns both into an immediate failure.
 func gitSafeEnv() []string {
-	return filterGitEnv(os.Environ())
+	return filterGitEnv(os.Environ(), defaultSSHCommand())
 }
 
 // filterGitEnv is gitSafeEnv's pure half: it drops the tracing and prompting
@@ -469,7 +539,7 @@ func gitSafeEnv() []string {
 // to the child. That matters beyond stderr: GIT_TRACE2_EVENT writes to a file
 // sink that redactURLCredentials never sees, so scrubbing stderr is not a
 // backstop for it.
-func filterGitEnv(entries []string) []string {
+func filterGitEnv(entries []string, sshCommand string) []string {
 	out := make([]string, 0, len(entries)+2)
 	hasSSHCommand := false
 	for _, entry := range entries {
@@ -488,7 +558,7 @@ func filterGitEnv(entries []string) []string {
 	}
 	out = append(out, "GIT_TERMINAL_PROMPT=0")
 	if !hasSSHCommand {
-		out = append(out, "GIT_SSH_COMMAND="+defaultSSHCommand)
+		out = append(out, "GIT_SSH_COMMAND="+sshCommand)
 	}
 	return out
 }
