@@ -74,16 +74,25 @@ func normalizeDepArg(raw string) (key, version string, explicit, ok bool) {
 		}
 	}
 
-	// Extract version suffix: "dep@version" but skip the leading "git@" of SSH URLs.
+	// Extract version suffix: "dep@version". For an SSH URL the search starts
+	// after the leading "git@" so that separator is not mistaken for the
+	// version marker — "git@host:path@main" splits into "git@host:path" and
+	// "main", while a bare "git@host:path" yields no version at all.
 	// A trailing bare "@" is still stripped from the URL part, as it always was,
 	// but carries no version and so does not count as explicit.
 	urlPart := raw
-	if !strings.HasPrefix(raw, "git@") {
-		if at := strings.LastIndex(raw, "@"); at > 0 {
-			version = raw[at+1:]
-			explicit = version != ""
-			urlPart = raw[:at]
-		}
+	searchFrom := 0
+	if strings.HasPrefix(raw, "git@") {
+		searchFrom = len("git@")
+	}
+	// A separator at offset 0 of the searched region would leave an empty URL
+	// part (a bare "@..." or the malformed "git@@..."), so require a non-empty
+	// one — the same guard the plain "at > 0" form gave for non-SSH input.
+	if at := strings.LastIndex(raw[searchFrom:], "@"); at > 0 {
+		at += searchFrom
+		version = raw[at+1:]
+		explicit = version != ""
+		urlPart = raw[:at]
 	}
 
 	// Expand "<alias>:<path>" into the canonical SSH or host/path form before

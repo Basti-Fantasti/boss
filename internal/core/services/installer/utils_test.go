@@ -285,3 +285,113 @@ func TestEnsureDependency_HTTPSURL(t *testing.T) {
 		t.Errorf("expected canonical host/path key; got %v", pkg.Dependencies)
 	}
 }
+
+// TestNormalizeDepArg_VersionSuffix is the regression guard for the bug where
+// an SSH dependency argument could never carry a version. The splitter skipped
+// the extraction entirely for anything starting with "git@", so
+// "git@host:path@main" kept "@main" in the clone URL and in the module
+// directory name. The separator must be searched for *after* the leading
+// "git@", not skipped because of it.
+//
+// The three outputs of the parser are observed through EnsureDependency: the
+// key by where the entry lands, the version by its value, and explicit by
+// whether an already-declared pin is overwritten.
+func TestNormalizeDepArg_VersionSuffix(t *testing.T) {
+	const declared = "already-declared"
+
+	tests := []struct {
+		name    string
+		raw     string
+		wantKey string
+		// wantVer empty means the argument carried no explicit version, so the
+		// already-declared pin must survive untouched.
+		wantVer string
+	}{
+		{
+			name:    "ssh url with branch suffix",
+			raw:     "git@gitlab.gtr.de:delphi/libraries/gtrlib@main",
+			wantKey: "git@gitlab.gtr.de:delphi/libraries/gtrlib",
+			wantVer: "main",
+		},
+		{
+			name:    "ssh url without version",
+			raw:     "git@gitlab.gtr.de:delphi/libraries/gtrlib",
+			wantKey: "git@gitlab.gtr.de:delphi/libraries/gtrlib",
+			wantVer: "",
+		},
+		{
+			name:    "ssh url with slashed branch name",
+			raw:     "git@host:path@feature/some-branch",
+			wantKey: "git@host:path",
+			wantVer: "feature/some-branch",
+		},
+		{
+			name:    "ssh url with raw sha",
+			raw:     "git@host:path@c880c29afebd1770b37eb5857c34fc9607681c4d",
+			wantKey: "git@host:path",
+			wantVer: "c880c29afebd1770b37eb5857c34fc9607681c4d",
+		},
+		{
+			// Malformed: the "@" sits immediately after the "git@" prefix, so
+			// splitting there would leave an empty URL part. The parser must
+			// leave such input exactly as it was before this fix — no version,
+			// nothing stripped.
+			name:    "malformed double at is left alone",
+			raw:     "git@@host:path",
+			wantKey: "git@@host:path",
+			wantVer: "",
+		},
+		{
+			name:    "bare name with version",
+			raw:     "horse@1.0.0",
+			wantKey: "github.com/hashload/horse",
+			wantVer: "1.0.0",
+		},
+		{
+			name:    "bare name without version",
+			raw:     "horse",
+			wantKey: "github.com/hashload/horse",
+			wantVer: "",
+		},
+		{
+			name:    "https url with version",
+			raw:     "https://host/owner/repo@v1.2.3",
+			wantKey: "host/owner/repo",
+			wantVer: "v1.2.3",
+		},
+		{
+			name:    "owner/repo without version",
+			raw:     "owner/repo",
+			wantKey: "github.com/owner/repo",
+			wantVer: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupIsolatedConfig(t)
+
+			key, ok := installer.NormalizeDepKey(tt.raw)
+			if !ok {
+				t.Fatalf("NormalizeDepKey(%q) reported failure", tt.raw)
+			}
+			if key != tt.wantKey {
+				t.Errorf("NormalizeDepKey(%q) = %q, want %q", tt.raw, key, tt.wantKey)
+			}
+
+			pkg := &domain.Package{Dependencies: map[string]string{tt.wantKey: declared}}
+			installer.EnsureDependency(pkg, []string{tt.raw})
+
+			if len(pkg.Dependencies) != 1 {
+				t.Fatalf("Dependencies = %v, want exactly one entry", pkg.Dependencies)
+			}
+			wantVer := tt.wantVer
+			if wantVer == "" {
+				wantVer = declared
+			}
+			if got := pkg.Dependencies[tt.wantKey]; got != wantVer {
+				t.Errorf("Dependencies[%q] = %q, want %q", tt.wantKey, got, wantVer)
+			}
+		})
+	}
+}
