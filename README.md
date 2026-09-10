@@ -19,7 +19,34 @@ _Bossy_ is a fork of [Boss](https://github.com/HashLoad/boss) — an open source
 
 ## 🚀 Getting started
 
-There is a [Getting Started](https://medium.com/@matheusarendthunsche/come%C3%A7ando-com-o-boss-72aad9bcc13) article for the upstream Boss project that covers the basic concepts. Note it references `boss` commands; use `bossy` instead when following along.
+Install bossy (see [Installation](#-installation)), then run this in a Delphi or
+Lazarus project directory:
+
+```sh
+bossy init                  # writes bossy.json; add -q to take defaults
+bossy install horse@3.3.5   # adds the dependency and resolves it
+git add bossy.json bossy-lock.json
+git commit -m "Add horse 3.3.5"
+```
+
+`bossy.json` is the manifest you edit. `bossy-lock.json` is generated and
+records the commit each dependency was resolved to, which is what makes a later
+`bossy install` reproduce the same sources. Commit both; ignore `modules/`.
+
+Joining a project that already uses bossy takes one command:
+
+```sh
+bossy install
+```
+
+Task-oriented recipes — branch pins, updating a single dependency, switching a
+dependency between a branch and a tag — are in
+[`docs/workflows.md`](docs/workflows.md).
+
+> Aside: the upstream Boss project has a Portuguese
+> [Getting Started](https://medium.com/@matheusarendthunsche/come%C3%A7ando-com-o-boss-72aad9bcc13)
+> article covering the same concepts. It predates this fork and uses the `boss`
+> command name throughout.
 
 ## 📦 Installation
 
@@ -73,6 +100,20 @@ bossy install gitlab.com/fake/horse        # Fake organization on GitLab
 bossy install https://gitlab.com/fake/horse # Full URL
 ```
 
+A version can be appended with `@`. It may be a semver constraint, a tag, a
+branch name, or a commit SHA:
+
+```shell
+bossy install horse@3.3.5
+bossy install "horse@^3.0.0"               # quote: ^ is special in some shells
+bossy install horse@dev                    # branch
+```
+
+Called with no arguments, `bossy install` installs everything in `bossy.json` at
+the commits recorded in `bossy-lock.json`. To move a dependency that is already
+locked, use [`bossy update`](#-update) — `install` replays the lock rather than
+re-resolving. See [`docs/workflows.md`](docs/workflows.md).
+
 You can also specify the compiler version and platform:
 
 ```sh
@@ -93,11 +134,27 @@ bossy uninstall <dependency>
 
 ### > Update
 
-Update all installed dependencies to their latest compatible versions:
+Re-resolve dependencies against their remotes, ignoring `bossy-lock.json`, and
+rewrite the lock with the commits that come back.
 
 ```sh
-bossy update
+bossy update                    # every dependency in bossy.json
+bossy update horse              # one dependency, keeping its declared version
+bossy update horse jhonson      # several
+bossy update horse@dev          # redeclare the version, then resolve it
 ```
+
+`bossy update <dep>` leaves the version in `bossy.json` untouched and only moves
+the lock, so it is the way to follow a branch you are already pinned to.
+Appending `@<version>` rewrites the manifest entry as well, which is how a
+dependency is switched between a branch and a tag.
+
+`bossy update --select` (or `-s`) opens an interactive checklist of the
+dependencies in `bossy.json`. The selected entries are re-installed from the
+lock rather than re-resolved, so the picker does not currently move a pin; name
+the dependency explicitly instead.
+
+Recipes for the common cases are in [`docs/workflows.md`](docs/workflows.md).
 
 > Aliases: up
 
@@ -385,10 +442,15 @@ Supported fields in `toolchain`:
 
 ```sh
 bossy install horse
-bossy install horse:1.0.0
+bossy install horse@1.0.0
 bossy install -g delphi-docker
 bossy install -g boss-ide
 ```
+
+The version separator is `@`. A `name:version` argument is read as
+`<alias>:<path>` (see [Host Aliases](#-host-aliases)); when the prefix is not a
+configured alias the argument is discarded, and the run reports
+`📄 No dependencies to install` and exits 0.
 
 ## Using [semantic versioning](https://semver.org/) to specify update types your package can accept
 
@@ -399,6 +461,24 @@ For example, to specify acceptable version ranges up to 1.0.4, use the following
 - Patch releases: 1.0 or 1.0.x or ~1.0.4
 - Minor releases: 1 or 1.x or ^1.0.4
 - Major releases: \* or x
+
+### Pinning to a branch
+
+A version string that is not a semver constraint is matched against the
+repository's refs by exact name, and that ref list contains branches as well as
+tags. A branch name therefore works as a version:
+
+```json
+{
+  "dependencies": {
+    "github.com/HashLoad/horse": "dev"
+  }
+}
+```
+
+The failed semver parse is reported as a warning even though the install
+succeeds. See [`docs/workflows.md`](docs/workflows.md) for the full workflow,
+including why a branch pin still gives reproducible builds.
 
 ### Pinning to a specific commit
 
@@ -418,13 +498,20 @@ that commit:
 After every install, the resolved commit SHA is recorded in `bossy-lock.json`
 under a `commit` field per dependency. On subsequent runs:
 
-- `bossy install` reuses the SHA from the lock file, so builds are reproducible
-  even if upstream tags move or branches advance.
+- `bossy install` checks the dependency out at the SHA from the lock, in
+  detached HEAD, and skips the pull. Builds stay reproducible even if upstream
+  tags move or branches advance.
 - `bossy update` ignores the lock, re-resolves each dependency's version
   constraint against the remote, and rewrites the lock with the new SHAs.
 
+Because `install` replays the lock, `bossy install <dep>@<version>` on a
+dependency that is already locked rewrites the `bossy.json` entry without
+touching the lock or the checkout. Use `bossy update <dep>[@<version>]` to move
+a pin.
+
 Commit `bossy-lock.json` to source control alongside `bossy.json` if you want
-reproducible CI builds. See [`docs/ci.md`](docs/ci.md).
+reproducible CI builds. See [`docs/ci.md`](docs/ci.md) and
+[`docs/workflows.md`](docs/workflows.md).
 
 ## bossy.json File Format
 
@@ -534,6 +621,8 @@ Here's a comprehensive example showing all available fields:
   - Tilde (patch updates): `"~1.0.0"` (allows 1.0.x, but not 1.1.x)
   - Wildcard (any): `"*"` or `"x"`
   - Range: `">=1.0.0 <2.0.0"`
+  - Branch name: `"dev"` (see [Pinning to a branch](#pinning-to-a-branch))
+  - Commit SHA: `"4e99beb"` (see [Pinning to a specific commit](#pinning-to-a-specific-commit))
 
 #### Custom Scripts
 

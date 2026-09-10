@@ -56,12 +56,14 @@ Commit `bossy-lock.json` alongside `bossy.json`. The lock records the
 resolved git commit SHA for every dependency, so:
 
 - In CI, run `bossy install` (not `bossy update`). `install` consumes the
-  lock and checks out each dependency at the exact pinned commit.
-- Force-pushed upstream tags do not change what CI installs — the SHA in
+  lock, checks out each dependency at the pinned commit in detached HEAD,
+  and skips the pull.
+- Force-pushed upstream tags do not change what CI installs; the SHA in
   the lock is immutable.
 - Internal libraries that don't tag releases (branch-only workflows) are
-  still reproducibly buildable, because the lock pins the branch tip's
-  SHA at the moment `bossy update` was last run.
+  still reproducibly buildable, because the lock pins the branch tip's SHA
+  as of the last run that resolved it — the first `bossy install`, or the
+  most recent `bossy update`.
 
 ```yaml
 build:
@@ -81,6 +83,24 @@ branch-pinned dependencies still resolve, and a SHA older than the
 shallow cut-off triggers an automatic deepening fetch. Caches created by
 earlier bossy versions — which restricted the remote refspec to a single
 branch — are repaired on the next `bossy install`.
+
+### Locks without commit SHAs
+
+A lock entry written by an older bossy has no `commit` field, and the skip
+decision then falls back to comparing version strings. If the recorded
+version already satisfies the constraint in `bossy.json`, `bossy install`
+reports the dependency as `Skipped already installed` and installs
+nothing, including on a clean CI checkout where `modules/` does not exist
+yet. Run `bossy update` once locally to fill in the SHAs, then commit the
+rewritten lock before a pipeline relies on it:
+
+```sh
+bossy update
+git add bossy-lock.json && git commit -m "Record resolved commits in lock"
+```
+
+For the developer-side workflows that produce and change the lock, see
+[`workflows.md`](workflows.md).
 
 ## Shell runners
 
