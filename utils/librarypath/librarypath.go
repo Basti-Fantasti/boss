@@ -25,7 +25,7 @@ import (
 func UpdateLibraryPath(pkg *domain.Package) {
 	msg.Info("♻️ Updating library path...")
 	if env.GetGlobal() {
-		updateGlobalLibraryPath()
+		updateGlobalLibraryPath(pkg)
 	} else {
 		updateDprojLibraryPath(pkg)
 		updateGlobalBrowsingPath(pkg)
@@ -107,22 +107,73 @@ func setReadOnlyProperty(dir string) {
 }
 
 // GetNewPaths returns a list of new paths.
-func GetNewPaths(paths []string, fullPath bool, rootPath string) []string {
+func GetNewPaths(pkg *domain.Package, paths []string, fullPath bool, rootPath string) []string {
 	paths = cleanPath(paths, fullPath)
 	var path = env.GetModulesDir()
 
 	matches, _ := os.ReadDir(path)
 
 	for _, value := range matches {
-		var packagePath = filepath.Join(path, value.Name(), consts.FilePackage)
-		if _, err := os.Stat(packagePath); !os.IsNotExist(err) {
-			other, _ := pkgmanager.LoadPackageOther(packagePath)
-			paths = getNewPathsFromDir(filepath.Join(path, value.Name(), other.MainSrc), paths, fullPath, rootPath)
-		} else {
-			paths = getNewPathsFromDir(filepath.Join(path, value.Name()), paths, fullPath, rootPath)
+		for _, root := range moduleScanRoots(pkg, path, value.Name()) {
+			paths = getNewPathsFromDir(root, paths, fullPath, rootPath)
 		}
 	}
 	return paths
+}
+
+// moduleScanRoots returns the directories inside one installed module that are
+// walked for compilable source, most specific source of truth first: a
+// searchpaths restriction in the consuming bossy.json, then the dependency's
+// own mainsrc, then the whole module.
+//
+// The last of those is the historical behaviour and stays the default, because
+// most Delphi libraries are a flat folder of units. It only misbehaves for a
+// repository that ships samples and tests alongside the library, where it can
+// contribute hundreds of directories.
+func moduleScanRoots(pkg *domain.Package, basePath, moduleName string) []string {
+	moduleDir := filepath.Join(basePath, moduleName)
+
+	if declared, ok := pkg.ModuleSearchPaths(moduleName); ok {
+		return resolveDeclaredRoots(moduleDir, moduleName, declared)
+	}
+
+	packagePath := filepath.Join(moduleDir, consts.FilePackage)
+	if _, err := os.Stat(packagePath); !os.IsNotExist(err) {
+		other, _ := pkgmanager.LoadPackageOther(packagePath)
+		return []string{filepath.Join(moduleDir, other.MainSrc)}
+	}
+	return []string{moduleDir}
+}
+
+// resolveDeclaredRoots turns declared relative paths into directories under the
+// module, dropping the ones that do not resolve. Both rejections are warned
+// about rather than ignored: a restriction that silently matches nothing
+// removes the library from the search path, and that surfaces much later as a
+// missing-unit error pointing nowhere near the manifest.
+func resolveDeclaredRoots(moduleDir, moduleName string, declared []string) []string {
+	roots := make([]string, 0, len(declared))
+	for _, rel := range declared {
+		root := filepath.Join(moduleDir, filepath.FromSlash(rel))
+		if !isInside(moduleDir, root) {
+			msg.Warn("⚠️ searchpaths: %q escapes module %s and was ignored", rel, moduleName)
+			continue
+		}
+		if info, err := os.Stat(root); err != nil || !info.IsDir() {
+			msg.Warn("⚠️ searchpaths: %q does not exist in module %s", rel, moduleName)
+			continue
+		}
+		roots = append(roots, root)
+	}
+	return roots
+}
+
+// isInside reports whether child is base itself or sits below it.
+func isInside(base, child string) bool {
+	rel, err := filepath.Rel(base, child)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // getDefaultPath returns the default library paths.

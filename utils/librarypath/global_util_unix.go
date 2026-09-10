@@ -5,11 +5,12 @@
 package librarypath
 
 import (
+	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/pkg/msg"
 )
 
 // updateGlobalLibraryPath updates the global library path.
-func updateGlobalLibraryPath() {
+func updateGlobalLibraryPath(_ *domain.Package) {
 	msg.Warn("⚠️ 'updateGlobalLibraryPath' not implemented on this platform")
 }
 

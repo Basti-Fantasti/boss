@@ -9,11 +9,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/beevik/etree"
 	"github.com/basti-fantasti/bossy/internal/core/domain"
 	"github.com/basti-fantasti/bossy/pkg/consts"
 	"github.com/basti-fantasti/bossy/pkg/env"
 	"github.com/basti-fantasti/bossy/pkg/msg"
+	"github.com/beevik/etree"
 )
 
 var (
@@ -28,15 +28,15 @@ func updateDprojLibraryPath(pkg *domain.Package) {
 	var projectNames = GetProjectNames(pkg)
 	for _, projectName := range projectNames {
 		if isLazarus {
-			updateOtherUnitFilesProject(projectName)
+			updateOtherUnitFilesProject(pkg, projectName)
 		} else {
-			updateLibraryPathProject(projectName)
+			updateLibraryPathProject(pkg, projectName)
 		}
 	}
 }
 
 // updateOtherUnitFilesProject updates the other unit files in the project file.
-func updateOtherUnitFilesProject(lpiName string) {
+func updateOtherUnitFilesProject(pkg *domain.Package, lpiName string) {
 	doc := etree.NewDocument()
 	info, err := os.Stat(lpiName)
 	if os.IsNotExist(err) || info.IsDir() {
@@ -52,7 +52,7 @@ func updateOtherUnitFilesProject(lpiName string) {
 	root := doc.Root()
 
 	compilerOptions := root.SelectElement(consts.XMLTagNameCompilerOptions)
-	processCompilerOptions(compilerOptions)
+	processCompilerOptions(pkg, compilerOptions)
 
 	projectOptions := root.SelectElement(consts.XMLTagNameProjectOptions)
 
@@ -62,7 +62,7 @@ func updateOtherUnitFilesProject(lpiName string) {
 		compilerOptions = item.SelectElement(consts.XMLTagNameCompilerOptions)
 		if compilerOptions != nil {
 			msg.Info("  🔁 Updating %s mode", attribute.Value)
-			processCompilerOptions(compilerOptions)
+			processCompilerOptions(pkg, compilerOptions)
 		}
 	}
 
@@ -76,7 +76,7 @@ func updateOtherUnitFilesProject(lpiName string) {
 }
 
 // processCompilerOptions processes the compiler options.
-func processCompilerOptions(compilerOptions *etree.Element) {
+func processCompilerOptions(pkg *domain.Package, compilerOptions *etree.Element) {
 	searchPaths := compilerOptions.SelectElement(consts.XMLTagNameSearchPaths)
 	if searchPaths == nil {
 		return
@@ -87,7 +87,7 @@ func processCompilerOptions(compilerOptions *etree.Element) {
 	}
 	value := otherUnitFiles.SelectAttr("Value")
 	currentPaths := strings.Split(value.Value, ";")
-	currentPaths = GetNewPaths(currentPaths, false, env.GetCurrentDir())
+	currentPaths = GetNewPaths(pkg, currentPaths, false, env.GetCurrentDir())
 	value.Value = strings.Join(currentPaths, ";")
 }
 
@@ -110,7 +110,7 @@ func updateGlobalBrowsingPath(pkg *domain.Package) {
 }
 
 // updateLibraryPathProject updates the library path in the project file.
-func updateLibraryPathProject(dprojName string) {
+func updateLibraryPathProject(pkg *domain.Package, dprojName string) {
 	doc := etree.NewDocument()
 	info, err := os.Stat(dprojName)
 	if os.IsNotExist(err) || info.IsDir() {
@@ -136,7 +136,7 @@ func updateLibraryPathProject(dprojName string) {
 			if _, err = os.Stat(rootPath); os.IsNotExist(err) {
 				rootPath = env.GetCurrentDir()
 			}
-			processCurrentPath(child, rootPath)
+			processCurrentPath(pkg, child, rootPath)
 		}
 	}
 
@@ -196,10 +196,10 @@ func isLazarus() bool {
 }
 
 // processCurrentPath processes the current path.
-func processCurrentPath(node *etree.Element, rootPath string) {
+func processCurrentPath(pkg *domain.Package, node *etree.Element, rootPath string) {
 	currentPaths := strings.Split(node.Text(), ";")
 
-	currentPaths = GetNewPaths(currentPaths, false, rootPath)
+	currentPaths = GetNewPaths(pkg, currentPaths, false, rootPath)
 
 	node.SetText(strings.Join(currentPaths, ";"))
 }

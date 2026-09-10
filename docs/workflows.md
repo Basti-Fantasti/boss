@@ -226,3 +226,43 @@ bossy uninstall horse
 The entry is dropped from `bossy.json`, `modules/horse` is deleted and the lock
 entry goes with it, including when it was the only dependency left. Commit both
 files.
+
+## When a dependency brings its samples along
+
+`bossy install` puts every directory of a dependency that holds source onto
+the compiler search path. For most Delphi libraries — a folder of `.pas`
+files — that is exactly right.
+
+It goes wrong for a repository that ships its library next to demo projects.
+delphimvcframework is the case you will meet first: one `sources` directory
+against roughly 190 directories of samples, unit tests and vendored demos,
+all of which land in your `.dproj`.
+
+The symptom is a build that fails before compiling anything:
+
+```
+MSB6003: The specified task executable "dcc" could not be run.
+The filename or extension is too long
+```
+
+MSBuild passes the search path to `dcc` on the command line, and Windows caps
+a command line at 32767 characters. A single dependency can spend that on its
+own.
+
+List the directories that hold the library:
+
+```json
+{
+  "searchpaths": {
+    "github.com/danieleteti/delphimvcframework": ["sources", "lib/loggerpro"]
+  }
+}
+```
+
+Then re-run `bossy install` and commit the rewritten `.dproj`. Paths are
+relative to `modules/<name>` and still walked recursively, so listing a root
+picks up its subdirectories.
+
+Worth checking even when the build succeeds: a samples directory on the
+search path can shadow one of your own units with a same-named demo unit, and
+that failure is far harder to read than the one above.

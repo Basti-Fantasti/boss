@@ -58,7 +58,12 @@ const (
 
 	BplIdentifierName = "BplIdentifier.exe"
 
-	RegexArtifacts = "(.*.inc$|.*.pas$|.*.dfm$|.*.fmx$|.*.dcu$|.*.bpl$|.*.dcp$|.*.res$)"
+	// RegexArtifacts matches the file extensions that mark a directory as
+	// holding Delphi source or build output. The dots are escaped: unescaped
+	// they are "any character", so extensionless files whose name merely ends
+	// in "res" or "pas" — zoneinfo data such as Buenos_Aires, for one —
+	// dragged their directory onto the search path.
+	RegexArtifacts = `(\.inc$|\.pas$|\.dfm$|\.fmx$|\.dcu$|\.bpl$|\.dcp$|\.res$)`
 
 	RegistryBasePath = `Software\Embarcadero\BDS\`
 

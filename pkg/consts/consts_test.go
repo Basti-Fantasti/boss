@@ -2,6 +2,7 @@ package consts_test
 
 import (
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/basti-fantasti/bossy/pkg/consts"
@@ -145,9 +146,34 @@ func TestConstants_BossInternal(t *testing.T) {
 }
 
 func TestConstants_RegexArtifacts(t *testing.T) {
-	expected := "(.*.inc$|.*.pas$|.*.dfm$|.*.fmx$|.*.dcu$|.*.bpl$|.*.dcp$|.*.res$)"
-	if consts.RegexArtifacts != expected {
-		t.Errorf("RegexArtifacts = %q, want %q", consts.RegexArtifacts, expected)
+	re := regexp.MustCompile(consts.RegexArtifacts)
+
+	tests := []struct {
+		name  string
+		match bool
+	}{
+		{"Unit1.pas", true},
+		{"Form1.dfm", true},
+		{"Form1.fmx", true},
+		{"defines.inc", true},
+		{"Unit1.dcu", true},
+		{"Pkg.bpl", true},
+		{"Pkg.dcp", true},
+		{"Version.res", true},
+		// Extensionless data files whose name happens to end in the letters of
+		// an extension. Before the dots were escaped these matched and pulled
+		// their whole directory onto the Delphi search path.
+		{"Buenos_Aires", false},
+		{"compas", false},
+		{"README", false},
+		{"notes.txt", false},
+		{"archive.pas.bak", false},
+	}
+
+	for _, tc := range tests {
+		if got := re.MatchString(tc.name); got != tc.match {
+			t.Errorf("RegexArtifacts.MatchString(%q) = %v, want %v", tc.name, got, tc.match)
+		}
 	}
 }
 
