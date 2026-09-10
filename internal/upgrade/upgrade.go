@@ -21,12 +21,12 @@ import (
 func BossUpgrade(preRelease bool) error {
 	releases, err := getBossReleases()
 	if err != nil {
-		return fmt.Errorf("failed to get boss releases: %w", err)
+		return fmt.Errorf("failed to get bossy releases: %w", err)
 	}
 
 	release, err := findLatestRelease(releases, preRelease)
 	if err != nil {
-		return fmt.Errorf("failed to find latest boss release: %w", err)
+		return fmt.Errorf("failed to find latest bossy release: %w", err)
 	}
 
 	asset, err := findAsset(release)

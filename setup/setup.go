@@ -53,7 +53,7 @@ func Initialize() {
 
 	env.SetGlobal(oldGlobal)
 	env.SetInternal(false)
-	msg.Debug("finish boss system initialization")
+	msg.Debug("finish bossy system initialization")
 }
 
 // initializeInfrastructure sets up infrastructure dependencies.

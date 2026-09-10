@@ -118,7 +118,7 @@ func GetBossHome() string {
 }
 
 // GetGitShallow returns true if shallow git clones should be used.
-// This can be configured via 'boss config git shallow true|false'.
+// This can be configured via 'bossy config git shallow true|false'.
 // Shallow clones are faster but don't include full git history.
 func GetGitShallow() bool {
 	if shallow := os.Getenv("BOSS_GIT_SHALLOW"); shallow == "true" || shallow == "1" {

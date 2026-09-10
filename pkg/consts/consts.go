@@ -69,7 +69,7 @@ const (
 	StatusMsgNoProjects       = "no projects"
 	StatusMsgNoBossJSON       = "no bossy.json"
 	StatusMsgBuildError       = "build error"
-	StatusMsgAlreadyUpToDate  = "boss is already up to date"
+	StatusMsgAlreadyUpToDate  = "bossy is already up to date"
 
 	GitBranchMain   = "main"
 	GitBranchMaster = "master"
