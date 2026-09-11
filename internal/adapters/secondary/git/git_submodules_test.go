@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/basti-fantasti/bossy/internal/core/domain"
+	"github.com/basti-fantasti/bossy/pkg/env"
 	goGit "github.com/go-git/go-git/v5"
 )
 
@@ -355,5 +356,89 @@ func TestSubmoduleBackendsAgreeOnTheTip(t *testing.T) {
 	}
 	if embeddedCommits["child"] != embedded.tipCommit {
 		t.Errorf("embedded resolved %q, want %q", embeddedCommits["child"], embedded.tipCommit)
+	}
+}
+
+// useFixtureAsSeparateGitDir reproduces the layout a real install leaves
+// behind: the worktree in modules/<name> with no .git of its own, and the git
+// directory in the per-user cache.
+//
+// buildSubmoduleFixture makes a plain repository, where every git command finds
+// its .git by walking up from the working directory. bossy's dependencies are
+// not laid out that way, so a submodule command that passes against the plain
+// fixture can still fail on a real install with "not a git repository".
+func useFixtureAsSeparateGitDir(t *testing.T, fixture submoduleFixture) domain.Dependency {
+	t.Helper()
+
+	dep := useFixtureAsModule(t, fixture)
+	gitDir := filepath.Join(env.GetCacheDir(), dep.HashName())
+	if err := os.MkdirAll(filepath.Dir(gitDir), 0o755); err != nil {
+		t.Fatalf("MkdirAll cache: %v", err)
+	}
+	if err := os.Rename(filepath.Join(fixture.superDir, ".git"), gitDir); err != nil {
+		t.Fatalf("move git dir into the cache: %v", err)
+	}
+
+	// The submodule's own .git points at the superproject's git dir relatively,
+	// so it has to follow the move. A real install never has this problem: its
+	// submodules are initialised after the pointer is in place, and git writes
+	// their paths against the cache to begin with.
+	subPointer := filepath.Join(fixture.superDir, "child", ".git")
+	if _, err := os.Stat(subPointer); err == nil {
+		contents := "gitdir: " + filepath.Join(gitDir, "modules", "child") + "\n"
+		if err := os.WriteFile(subPointer, []byte(contents), 0o600); err != nil {
+			t.Fatalf("rewrite submodule pointer: %v", err)
+		}
+	}
+	return dep
+}
+
+// The regression this guards: with the git directory in the cache, every
+// `git submodule` command ran in a directory git did not recognise as a
+// repository, so the remote policy failed on every dependency it was declared
+// for while the plain-fixture tests above stayed green.
+func TestAdvanceSubmodulesToBranchTips_WorksWithTheGitDirInTheCache(t *testing.T) {
+	fixture := buildSubmoduleFixture(t)
+	dep := useFixtureAsSeparateGitDir(t, fixture)
+
+	commits, err := AdvanceSubmodulesToBranchTips(dep)
+	if err != nil {
+		t.Fatalf("AdvanceSubmodulesToBranchTips: %v", err)
+	}
+	if got := commits["child"]; got != fixture.tipCommit {
+		t.Errorf("reported commit for child = %q, want the branch tip %q", got, fixture.tipCommit)
+	}
+	if got := submoduleHead(t, fixture.superDir); got != fixture.tipCommit {
+		t.Errorf("submodule HEAD = %q, want the branch tip %q", got, fixture.tipCommit)
+	}
+}
+
+// The pointer is bossy's to manage, not the module tree's: the rest of the
+// installer expects modules/<name> to carry no .git, so it must be gone again
+// once the submodule work is done.
+func TestAdvanceSubmodulesToBranchTips_LeavesNoGitPointerBehind(t *testing.T) {
+	fixture := buildSubmoduleFixture(t)
+	dep := useFixtureAsSeparateGitDir(t, fixture)
+
+	if _, err := AdvanceSubmodulesToBranchTips(dep); err != nil {
+		t.Fatalf("AdvanceSubmodulesToBranchTips: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(fixture.superDir, ".git")); !os.IsNotExist(err) {
+		t.Errorf("modules/super/.git still exists after the advance (stat error: %v)", err)
+	}
+}
+
+// Replaying a lock has to work in the same layout, which is the path every
+// install after the first one takes.
+func TestCheckoutSubmodules_WorksWithTheGitDirInTheCache(t *testing.T) {
+	fixture := buildSubmoduleFixture(t)
+	dep := useFixtureAsSeparateGitDir(t, fixture)
+
+	if err := CheckoutSubmodules(dep, map[string]string{"child": fixture.pinnedCommit}); err != nil {
+		t.Fatalf("CheckoutSubmodules: %v", err)
+	}
+	if got := submoduleHead(t, fixture.superDir); got != fixture.pinnedCommit {
+		t.Errorf("submodule HEAD = %q, want the replayed commit %q", got, fixture.pinnedCommit)
 	}
 }

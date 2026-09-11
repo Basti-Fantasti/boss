@@ -51,9 +51,36 @@ history, see the upstream repository.
   make `bossy add dmvcframework` mean two different things. `bossy install` and its
   `i` alias are unchanged; an argument to `bossy add` that still looks like a
   repository is recognised and pointed back at `bossy install`.
+- The environment variables are now `BOSSY_HOME` and `BOSSY_GIT_SHALLOW`, matching the
+  binary's name. `BOSS_HOME` and `BOSS_GIT_SHALLOW` are still read as a fallback and the
+  new names take precedence, because these are set in CI job definitions and build-server
+  configurations that do not live in this repository.
 
 ### Fixed
 
+- The `remote` submodule policy works at all. Every `git submodule` command ran in
+  `modules/<name>`, which carries no `.git` of its own because a dependency's git
+  directory lives in the cache, so each one failed with "not a git repository" and the
+  policy silently degraded to a warning on every install. The pointer linking the two is
+  now restored for the duration of the submodule work and removed again afterwards. The
+  tests missed this because their fixture was a plain repository; there is now one
+  reproducing bossy's separate-git-dir layout.
+- A dependency using the `remote` policy no longer breaks every other project that
+  depends on it. Advancing a submodule leaves the superproject dirty, and the git
+  directory holding that state is shared across projects, so the next install elsewhere
+  aborted with "worktree contains unstaged changes". The advanced gitlinks are staged,
+  which is what makes the deliberate move indistinguishable from a clean tree.
+- A submodule that cannot be initialised no longer fails the install. go-git works
+  against an in-memory worktree in the cache path, where a configured submodule with
+  nothing on disk behind it reports unstaged changes; that cost the dependency, not just
+  its submodules.
+- A dependency already sitting at its locked commit still has its submodule policy
+  applied. The skip decision looks at the superproject's commit, which says nothing
+  about where its submodules are, so a tree populated before the policy was declared
+  stayed stale indefinitely.
+- `bossy preset list` measures the reference column instead of assuming 22 characters,
+  so a long branch name no longer pushes the repository column out of line for every
+  other row.
 - Project files keep the line endings they already had. `.dproj` and `.lpi` files are
   parsed as XML, and the XML spec requires a parser to fold CRLF into LF, so writing the
   document back rewrote every line of a project file saved by the Delphi IDE. Beyond the

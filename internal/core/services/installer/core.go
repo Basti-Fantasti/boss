@@ -320,6 +320,12 @@ func (ic *installContext) ensureSingleModule(pkg *domain.Package, dep domain.Dep
 	ic.progress.AddDependency(depName)
 
 	if ic.shouldSkipDependency(dep) {
+		// The skip decision looks at the superproject's commit, which says
+		// nothing about where its submodules sit. A tree left over from before
+		// the policy was declared, or one a colleague's older bossy populated,
+		// is at the locked commit with its submodules missing or stale, and
+		// skipping outright would leave it that way for good.
+		ic.applySubmodulePolicy(dep)
 		ic.reportSkipped(depName, consts.StatusMsgAlreadyInstalled)
 		return nil
 	}

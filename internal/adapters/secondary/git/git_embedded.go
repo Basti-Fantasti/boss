@@ -113,9 +113,7 @@ func CloneCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Rep
 		}
 		return nil, err
 	}
-	if err := initSubmodules(dep, decision, repository); err != nil {
-		return nil, err
-	}
+	warnOnSubmoduleInitFailure(dep, decision, repository)
 	return repository, nil
 }
 
@@ -152,9 +150,7 @@ func UpdateCacheEmbedded(dep domain.Dependency, decision auth.Decision) (*git.Re
 	if err != nil && err.Error() != "already up-to-date" {
 		msg.Debug("Error to fetch repository of %s: %s", dep.Repository, err)
 	}
-	if err := initSubmodules(dep, decision, repository); err != nil {
-		return nil, err
-	}
+	warnOnSubmoduleInitFailure(dep, decision, repository)
 	return repository, nil
 }
 
@@ -263,4 +259,21 @@ func ciJobTokenError(repo string, cause error) error {
 		"Add the calling project to the dependency project's CI/CD job-token allowlist:\n"+
 		"  Settings → CI/CD → Job token permissions\n"+
 		"See docs/ci.md for details. Underlying error: %w", repo, cause)
+}
+
+// warnOnSubmoduleInitFailure initialises a dependency's submodules and reports
+// a failure without aborting the install.
+//
+// go-git works against an in-memory worktree here, so anything it cannot do
+// with submodules costs their contents, never the dependency itself. It matters
+// because the cache repository is shared: once any code path has written a
+// [submodule] section into its config — the remote policy's `git submodule
+// update --init` does — go-git finds a configured submodule with nothing on
+// disk behind it and reports unstaged changes. Returning that error failed the
+// whole install, and for every project using the dependency, not just the one
+// that declared the policy.
+func warnOnSubmoduleInitFailure(dep domain.Dependency, decision auth.Decision, repository *git.Repository) {
+	if err := initSubmodules(dep, decision, repository); err != nil {
+		msg.Debug("Could not initialise submodules of %s: %s", dep.Repository, err)
+	}
 }

@@ -2,6 +2,7 @@ package gitadapter
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -27,13 +28,78 @@ import (
 // Only dependencies whose preset asks for it take this path; git's own default
 // of honouring the superproject's recorded commits stays the default here.
 func AdvanceSubmodulesToBranchTips(dep domain.Dependency) (map[string]string, error) {
-	if useNativeSubmodules(dep) {
-		if err := advanceSubmodulesNative(dep); err != nil {
-			return nil, err
-		}
-		return SubmoduleCommits(dep)
+	if !useNativeSubmodules(dep) {
+		return advanceSubmodulesEmbedded(dep)
 	}
-	return advanceSubmodulesEmbedded(dep)
+
+	var commits map[string]string
+	err := withGitDirPointer(dep, func() error {
+		if advErr := advanceSubmodulesNative(dep); advErr != nil {
+			return advErr
+		}
+		var statusErr error
+		commits, statusErr = submoduleCommitsNative(dep)
+		if statusErr != nil {
+			return statusErr
+		}
+		return stageSubmoduleGitlinks(dep, commits)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return commits, nil
+}
+
+// withGitDirPointer runs fn with a .git pointer present in the dependency's
+// module directory.
+//
+// A dependency's worktree lives in modules/<name> while its git directory stays
+// in the per-user cache, and CheckoutNative deletes the .git file linking the
+// two once the checkout is done. Every `git submodule` command runs in the
+// worktree and fails with "not a git repository" without that link, so it is
+// restored for the duration of the work and removed again afterwards, leaving
+// the module tree as the rest of bossy expects to find it.
+//
+// The submodules keep working once it is gone: git writes their own .git files
+// as paths into the cache, not as paths through the superproject's git dir.
+func withGitDirPointer(dep domain.Dependency, fn func() error) error {
+	pointer := filepath.Join(moduleDir(dep), ".git")
+	if _, err := os.Stat(pointer); err == nil {
+		return fn()
+	}
+
+	writeDotGitFile(dep)
+	defer func() { _ = os.Remove(pointer) }()
+	return fn()
+}
+
+// stageSubmoduleGitlinks records the advanced commits in the superproject's
+// index.
+//
+// Moving a submodule past the commit its superproject pins leaves that
+// superproject dirty, which is exactly what `git status` should tell a human.
+// bossy's git directory is not a human's clone though: it sits in the cache and
+// is shared by every project using the dependency, and a dirty worktree there
+// makes go-git refuse the next pull and the next install, in projects that
+// never asked for the policy. Staging the gitlinks says the move was
+// deliberate and leaves the tree clean.
+//
+// The paths come from the dependency's own .gitmodules, so `--` separates them
+// from the options: a submodule path beginning with a dash would otherwise
+// reach git as one.
+func stageSubmoduleGitlinks(dep domain.Dependency, commits map[string]string) error {
+	if len(commits) == 0 {
+		return nil
+	}
+
+	args := append([]string{"add", "--"}, sortedKeys(commits)...)
+	cmd := exec.Command("git", args...) // #nosec G204 -- paths are separated from options by --
+	cmd.Dir = moduleDir(dep)
+
+	if err := runCommand(cmd); err != nil {
+		return fmt.Errorf("stage advanced submodules of %s: %w", dep.Repository, err)
+	}
+	return nil
 }
 
 // advanceSubmodulesNative shells out to the system git binary.
@@ -166,7 +232,9 @@ func CheckoutSubmodules(dep domain.Dependency, commits map[string]string) error 
 	}
 
 	if useNativeSubmodules(dep) {
-		return checkoutSubmodulesNative(dep, commits)
+		return withGitDirPointer(dep, func() error {
+			return checkoutSubmodulesNative(dep, commits)
+		})
 	}
 	return checkoutSubmodulesEmbedded(dep, commits)
 }
@@ -246,6 +314,21 @@ func SubmoduleCommits(dep domain.Dependency) (map[string]string, error) {
 		return submoduleCommitsEmbedded(dep)
 	}
 
+	var commits map[string]string
+	err := withGitDirPointer(dep, func() error {
+		var statusErr error
+		commits, statusErr = submoduleCommitsNative(dep)
+		return statusErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	return commits, nil
+}
+
+// submoduleCommitsNative reads `git submodule status` in the module worktree.
+// The caller is responsible for the .git pointer being in place.
+func submoduleCommitsNative(dep domain.Dependency) (map[string]string, error) {
 	cmd := exec.Command("git", "submodule", "status", "--recursive")
 	cmd.Dir = moduleDir(dep)
 
