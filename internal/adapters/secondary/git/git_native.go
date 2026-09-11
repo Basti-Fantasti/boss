@@ -647,11 +647,9 @@ func parseLsRemote(stdout string) []*plumbing.Reference {
 		// Only real branches and tags. Server-advertised refs such as
 		// refs/pull/*, refs/merge-requests/* and a bare HEAD line all satisfy
 		// installer's isHashRef sentinel (!IsTag && !IsBranch && !IsRemote)
-		// and would be mistaken for a raw-SHA pin.
-		if !strings.HasPrefix(name, "refs/heads/") && !strings.HasPrefix(name, "refs/tags/") {
-			continue
-		}
-		if strings.HasSuffix(name, "^{}") {
+		// and would be mistaken for a raw-SHA pin. The same predicate filters
+		// the embedded backend, so the two cannot drift apart.
+		if !isBranchOrTagRef(name) {
 			continue
 		}
 		if !isFullHexSHA(sha) {
