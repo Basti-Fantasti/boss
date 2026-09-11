@@ -35,16 +35,22 @@ func (a listAction) run(svc *presets.Service) ([]string, error) {
 		return []string{"No presets found. Run 'bossy preset sync' or add one with 'bossy preset add'."}, nil
 	}
 
-	width := 0
+	// Both columns are measured rather than guessed: a branch name such as
+	// "pr/utf8-console-output-v2" overruns any fixed width and pushes the
+	// repository column out of alignment for every other row.
+	idWidth, refWidth := 0, 0
 	for _, p := range items {
-		if len(p.ID) > width {
-			width = len(p.ID)
+		if len(p.ID) > idWidth {
+			idWidth = len(p.ID)
+		}
+		if ref := p.DefaultRef.String(); len(ref) > refWidth {
+			refWidth = len(ref)
 		}
 	}
 
 	lines := make([]string, 0, len(items))
 	for _, p := range items {
-		lines = append(lines, fmt.Sprintf("%-*s  %-22s  %s", width, p.ID, p.DefaultRef.String(), p.Repo))
+		lines = append(lines, fmt.Sprintf("%-*s  %-*s  %s", idWidth, p.ID, refWidth, p.DefaultRef.String(), p.Repo))
 	}
 	return lines, nil
 }
