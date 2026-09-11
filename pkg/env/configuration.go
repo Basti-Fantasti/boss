@@ -30,6 +30,9 @@ type Configuration struct {
 	GitShallow          bool              `json:"git_shallow,omitempty"`
 	HostProtocols       map[string]string `json:"host_protocols,omitempty"`
 	Aliases             map[string]string `json:"aliases,omitempty"`
+	// PresetSource is the catalog repository `bossy preset sync` pulls from.
+	// Remembered after the first successful sync so later runs need no flag.
+	PresetSource string `json:"preset_source,omitempty"`
 
 	Advices struct {
 		SetupPath bool `json:"setup_path,omitempty"`

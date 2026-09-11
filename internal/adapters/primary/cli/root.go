@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/basti-fantasti/bossy/internal/adapters/primary/cli/config"
+	"github.com/basti-fantasti/bossy/internal/adapters/primary/cli/preset"
 	"github.com/basti-fantasti/bossy/internal/core/services/gc"
 	"github.com/basti-fantasti/bossy/internal/migrate"
 	"github.com/basti-fantasti/bossy/pkg/consts"
@@ -78,6 +79,7 @@ func Execute() error {
 	setup.Initialize()
 
 	config.RegisterConfigCommand(root)
+	preset.RegisterPresetCommand(root)
 	authCmdRegister(root)
 	initCmdRegister(root)
 	installCmdRegister(root)
