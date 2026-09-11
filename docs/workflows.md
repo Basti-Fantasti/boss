@@ -67,19 +67,14 @@ the command line:
 bossy install horse@dev
 ```
 
-Version strings are parsed as semver constraints first. `dev` is not a valid
-constraint, so resolution falls back to an exact-name match against the
-repository's ref list, which holds branches alongside tags. The failed parse is
-still reported, so a successful branch install prints a warning:
+A version string that is exactly the name of a branch or tag resolves to that
+ref. Only strings that name no ref are read as semver constraints, so `dev`
+finds the branch and `^3.0.0` finds the newest matching tag.
 
-```
-⚠️ Installation Warnings:
-   - horse: Version constraint 'dev' not supported: improper constraint: dev
-```
-
-It appears whenever bossy resolves the branch — on the first install and on
-every `bossy update`. Replaying an existing lock entry skips resolution
-entirely, so the routine `bossy install` a colleague runs is quiet.
+The order matters for a branch whose name also reads as a version. zeoslib's
+`8.0-patches` parses as 8.0 with the prerelease `patches`, and resolving the
+constraint first landed on the nearest match rather than the branch: the
+unrelated `8.0.0-stable`, silently, with the wrong commit in the lock.
 
 `bossy dependencies -v` labels what a branch pin resolved to:
 

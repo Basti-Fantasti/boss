@@ -58,6 +58,15 @@ history, see the upstream repository.
 
 ### Fixed
 
+- A declared version that is exactly the name of a branch or tag now resolves to that
+  ref instead of being read as a semver constraint first. zeoslib's development branch is
+  called `8.0-patches`, which semver reads as 8.0 with the prerelease `patches`, so the
+  constraint path won and settled on the nearest match: the unrelated branch
+  `8.0.0-stable`, a commit from 2024. Nothing warned; `bossy-lock.json` simply recorded a
+  different branch than `bossy.json` declared. Ranges are untouched, since no ref can be
+  named `>0.0.0` or `^3.0.0`, and a bare `1.2` is normalised to `1.2.0` before it gets
+  here. A branch pin no longer produces the `Version constraint 'main' not supported`
+  warning either: the name is recognised before anything tries to parse it as a range.
 - The `remote` submodule policy works at all. Every `git submodule` command ran in
   `modules/<name>`, which carries no `.git` of its own because a dependency's git
   directory lives in the cache, so each one failed with "not a git repository" and the

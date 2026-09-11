@@ -769,6 +769,23 @@ func (ic *installContext) getVersion(
 		// building the wrong branch is worse than not building.
 		msg.Die("❌ Could not list versions for '%s': %s", dep.Repository, errVersions)
 	}
+
+	// A declared version that is exactly the name of a branch or tag means that
+	// ref, whatever else the string might also parse as. Resolving the semver
+	// constraint first got this wrong for zeoslib: "8.0-patches" is both a
+	// branch name and a readable semver constraint (8.0 with the prerelease
+	// "patches"), so the constraint path won and picked the closest matching
+	// ref, which was the unrelated branch "8.0.0-stable". Nothing reported a
+	// problem; the lock simply recorded a different branch than the one asked
+	// for.
+	//
+	// Ranges are unaffected. No ref can be named ">0.0.0" or "^3.0.0", and a
+	// bare "1.2" is normalised to "1.2.0" long before it arrives here, so it
+	// cannot match a tag named "1.2" either.
+	if exact := exactRefMatch(versions, dep.GetVersion()); exact != nil {
+		return exact
+	}
+
 	constraints, err := domain.ParseConstraint(dep.GetVersion())
 	if err != nil {
 		warnMsg := fmt.Sprintf("Version constraint '%s' not supported: %s", dep.GetVersion(), err)
@@ -777,11 +794,6 @@ func (ic *installContext) getVersion(
 		}
 		ic.addWarning(fmt.Sprintf("%s: %s", dep.Name(), warnMsg))
 
-		for _, version := range versions {
-			if version.Name().Short() == dep.GetVersion() {
-				return version
-			}
-		}
 		//nolint:lll // Error message readability
 		warnMsg2 := fmt.Sprintf("No exact match found for version '%s'. Available versions: %d", dep.GetVersion(), len(versions))
 		if !ic.progress.IsEnabled() {
@@ -794,6 +806,17 @@ func (ic *installContext) getVersion(
 	return ic.getVersionSemantic(
 		versions,
 		constraints)
+}
+
+// exactRefMatch returns the branch or tag whose name is exactly the declared
+// version, or nil when no ref carries that name.
+func exactRefMatch(versions []*plumbing.Reference, declared string) *plumbing.Reference {
+	for _, version := range versions {
+		if version.Name().Short() == declared {
+			return version
+		}
+	}
+	return nil
 }
 
 func (ic *installContext) getVersionSemantic(

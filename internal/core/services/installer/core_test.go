@@ -4,6 +4,7 @@ package installer
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -193,5 +194,62 @@ func TestGetVersion_LockedCommitFastPath(t *testing.T) {
 	}
 	if got := ref.Name().Short(); got != "1.2.3" {
 		t.Errorf("Name = %q, want the locked version label %q", got, "1.2.3")
+	}
+}
+
+// zeoslib's development branch is called "8.0-patches", which semver reads
+// happily as 8.0 with the prerelease "patches". Resolving the constraint first
+// therefore never looked at the branch at all and settled on the closest
+// matching ref, the unrelated branch "8.0.0-stable". No warning was produced;
+// the lock just recorded a different branch than the manifest declared.
+func TestExactRefMatch_PrefersTheNamedRefOverASemverNeighbour(t *testing.T) {
+	t.Parallel()
+
+	refs := []*plumbing.Reference{
+		plumbing.NewHashReference(plumbing.NewBranchReferenceName("master"), plumbing.NewHash(strings.Repeat("a", 40))),
+		plumbing.NewHashReference(plumbing.NewBranchReferenceName("8.0.0-stable"), plumbing.NewHash(strings.Repeat("b", 40))),
+		plumbing.NewHashReference(plumbing.NewBranchReferenceName("8.0-patches"), plumbing.NewHash(strings.Repeat("c", 40))),
+	}
+
+	got := exactRefMatch(refs, "8.0-patches")
+	if got == nil {
+		t.Fatal("no match for a branch that exists by that exact name")
+	}
+	if short := got.Name().Short(); short != "8.0-patches" {
+		t.Errorf("matched %q, want the branch named in the manifest", short)
+	}
+}
+
+// A range is not a ref name, so it has to fall through to the semver path.
+// Getting this wrong would turn every constraint into a failed lookup.
+func TestExactRefMatch_IgnoresRanges(t *testing.T) {
+	t.Parallel()
+
+	refs := []*plumbing.Reference{
+		plumbing.NewHashReference(plumbing.NewTagReferenceName("3.3.5"), plumbing.NewHash(strings.Repeat("a", 40))),
+		plumbing.NewHashReference(plumbing.NewTagReferenceName("3.4.0"), plumbing.NewHash(strings.Repeat("b", 40))),
+	}
+
+	for _, declared := range []string{">0.0.0", "^3.0.0", "~3.3.0"} {
+		if got := exactRefMatch(refs, declared); got != nil {
+			t.Errorf("%q matched ref %q; ranges must reach the constraint path", declared, got.Name().Short())
+		}
+	}
+}
+
+// An exact tag name resolves to that tag, which is what the constraint path
+// would have produced anyway. Stated so the reordering is not mistaken for a
+// change in how plain versions behave.
+func TestExactRefMatch_MatchesTagsToo(t *testing.T) {
+	t.Parallel()
+
+	refs := []*plumbing.Reference{
+		plumbing.NewHashReference(plumbing.NewTagReferenceName("3.3.5"), plumbing.NewHash(strings.Repeat("a", 40))),
+		plumbing.NewHashReference(plumbing.NewTagReferenceName("3.4.0"), plumbing.NewHash(strings.Repeat("b", 40))),
+	}
+
+	got := exactRefMatch(refs, "3.3.5")
+	if got == nil || got.Name().Short() != "3.3.5" {
+		t.Errorf("exactRefMatch = %v, want the tag 3.3.5", got)
 	}
 }
