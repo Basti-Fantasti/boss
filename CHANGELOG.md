@@ -10,6 +10,36 @@ history, see the upstream repository.
 
 ## [Unreleased]
 
+### Added
+
+- A catalog of predefined dependencies, and `bossy add` to pick from it. Adding a
+  dependency no longer means typing its repository URL, its branch and its search-path
+  restriction by hand — the catalog carries all three and a project picks by name. The
+  interactive picker is a filterable list with a detail pane offering each entry's
+  branches and tags, listed from the remote without cloning and only for the entry you
+  open. `bossy add --tag <tag>` and `bossy add <id>...` do the same non-interactively;
+  without a terminal and without either, the command refuses rather than waiting on a
+  keystroke that will never arrive in CI.
+- `bossy preset` manages that catalog: `list`, `show`, `add`, `update`, `rm`, `import`
+  and `sync`. Two catalogs are merged — a shared one pulled from a git repository by
+  `sync`, and a local one holding your own entries — with local entries shadowing
+  shared ones by id. Client-side writes only ever touch the local catalog, so
+  contributing a shared entry goes through a merge request on the catalog repository.
+  A sync validates the whole downloaded catalog before writing, so a repository with
+  one bad entry cannot leave a machine with no catalog at all.
+- Remote branches and tags can be listed without cloning on both git backends
+  (`ls-remote` natively, an in-memory storer under go-git). Both apply the same
+  `refs/heads` and `refs/tags` allowlist, so neither offers a server-advertised
+  `refs/pull/*` or `refs/merge-requests/*` entry as a pin.
+
+### Changed
+
+- `bossy install` no longer accepts `add` as an alias. That verb is now a command of
+  its own taking preset ids rather than repository keys, and keeping the alias would
+  make `bossy add dmvcframework` mean two different things. `bossy install` and its
+  `i` alias are unchanged; an argument to `bossy add` that still looks like a
+  repository is recognised and pointed back at `bossy install`.
+
 ### Fixed
 
 - Project files keep the line endings they already had. `.dproj` and `.lpi` files are

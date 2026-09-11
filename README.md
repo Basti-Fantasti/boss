@@ -120,7 +120,94 @@ You can also specify the compiler version and platform:
 bossy install --compiler=37.0 --platform=Win64
 ```
 
-> Aliases: i, add
+> Aliases: i
+
+### > Add (preset catalog)
+
+`bossy install` takes a repository URL. `bossy add` takes a name from a curated
+catalog, so a project can pick from a list instead of someone retyping
+twenty-odd repository URLs and remembering which branch each one is pinned to.
+
+```sh
+# Pick interactively
+bossy add
+
+# Add a whole tagged baseline without the picker
+bossy add --tag gtr-standard
+
+# Add named presets
+bossy add dmvcframework zeoslib
+```
+
+The picker is a filterable list with a detail pane. `space` ticks an entry,
+`enter` opens its branch and tag list, `f` freezes the chosen reference to the
+commit it resolves to, `/` filters, `a` ticks everything currently shown, and
+`ctrl+s` writes the result. References are listed from the remote without
+cloning, and only for the entry you open.
+
+Choosing a dependency writes its `searchpaths` restriction into `bossy.json`
+alongside the dependency itself. That restriction is what keeps a library that
+ships samples and unit tests beside its source from putting hundreds of
+directories on the Delphi search path.
+
+If a reference listing fails, the picker keeps the catalog's default and marks
+the entry unverified rather than quietly falling back to the main branch.
+
+A non-interactive shell must pass ids or `--tag`; without a terminal the
+command refuses rather than waiting on a keystroke that will never arrive.
+
+### > Preset
+
+Manage the catalog `bossy add` reads. Two catalogs are merged: a shared one
+pulled from a git repository, and a local one holding your own entries. A local
+entry wins on an id collision, which is how you override a shared entry without
+editing the shared catalog.
+
+```sh
+# Pull the shared catalog (the repository is remembered afterwards)
+bossy preset sync --source gtr:delphi/libraries/bossy-presets
+bossy preset sync
+
+# See what is available
+bossy preset list
+bossy preset list --tag gtr-standard
+bossy preset show dmvcframework
+
+# Add your own entry
+bossy preset add dmvcframework   --repo github.com/danieleteti/delphimvcframework   --ref tag:3.4.2-magnesium   --searchpath sources --searchpath lib/loggerpro   --platform Win32 --platform Win64   --tag gtr-standard
+
+# Change one, remove one, or merge in a catalog file
+bossy preset update dmvcframework --ref branch:master
+bossy preset rm dmvcframework
+bossy preset import ./presets.json
+```
+
+`--ref` takes `branch:<name>`, `tag:<name>`, `commit:<40-hex-sha>` or a bare
+`default`. `update` patches only the fields you pass.
+
+`add`, `update` and `rm` write your local catalog only. Contributing an entry to
+the shared catalog is a merge request against the catalog repository, which is
+the review step you want before an entry reaches every machine.
+
+The catalogs live in `~/.bossy/presets/` as `remote.json` and `local.json`. A
+catalog repository carries its entries in `presets.json` at its root:
+
+```json
+{
+  "schema": 1,
+  "presets": [
+    {
+      "id": "dmvcframework",
+      "name": "DMVC Framework",
+      "repo": "github.com/danieleteti/delphimvcframework",
+      "default_ref": { "kind": "tag", "value": "3.4.2-magnesium" },
+      "searchpaths": ["sources", "lib/dmustache", "lib/loggerpro"],
+      "platforms": ["Win32", "Win64", "Win64x", "Linux64"],
+      "tags": ["web", "gtr-standard"]
+    }
+  ]
+}
+```
 
 ### > Uninstall
 
