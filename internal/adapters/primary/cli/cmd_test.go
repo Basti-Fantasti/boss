@@ -89,11 +89,16 @@ func TestInstallCommand(t *testing.T) {
 		t.Fatal("Install command not found")
 	}
 
-	// Test aliases
-	expectedAliases := map[string]bool{"i": false, "add": false}
+	// Test aliases. "add" is deliberately not among them any more: it is now a
+	// command of its own that takes preset ids rather than repository keys, and
+	// an alias would make "bossy add dmvcframework" mean two different things.
+	expectedAliases := map[string]bool{"i": false}
 	for _, alias := range installCmd.Aliases {
 		if _, ok := expectedAliases[alias]; ok {
 			expectedAliases[alias] = true
+		}
+		if alias == "add" {
+			t.Error("Install command must not alias 'add'; that verb belongs to the preset picker")
 		}
 	}
 

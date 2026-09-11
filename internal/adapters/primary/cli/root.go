@@ -83,6 +83,7 @@ func Execute() error {
 	authCmdRegister(root)
 	initCmdRegister(root)
 	installCmdRegister(root)
+	addCmdRegister(root)
 	runCmdRegister(root)
 	uninstallCmdRegister(root)
 	updateCmdRegister(root)

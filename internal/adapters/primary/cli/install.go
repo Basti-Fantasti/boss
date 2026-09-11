@@ -17,7 +17,7 @@ func installCmdRegister(root *cobra.Command) {
 		Use:     "install",
 		Short:   "Install a new dependency",
 		Long:    `This command install a new dependency on your project`,
-		Aliases: []string{"i", "add"},
+		Aliases: []string{"i"},
 		Example: `  Add a new dependency:
   bossy install <pkg>
 
