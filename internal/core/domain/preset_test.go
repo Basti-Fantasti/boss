@@ -250,3 +250,80 @@ func TestMergeCatalogs_EmptyInputs(t *testing.T) {
 		t.Fatalf("merging two empty catalogs returned %d presets", len(got))
 	}
 }
+
+func TestSubmodulePolicy_Validate(t *testing.T) {
+	t.Parallel()
+
+	cases := map[domain.SubmodulePolicy]bool{
+		"":                           false,
+		domain.SubmodulePolicyPinned: false,
+		domain.SubmodulePolicyRemote: false,
+		"Remote":                     true,
+		"tips":                       true,
+		"--remote":                   true,
+	}
+	for policy, wantErr := range cases {
+		if err := policy.Validate(); (err != nil) != wantErr {
+			t.Errorf("SubmodulePolicy(%q).Validate() error = %v, wantErr %v", policy, err, wantErr)
+		}
+	}
+}
+
+func TestSubmodulePolicy_IsRemote(t *testing.T) {
+	t.Parallel()
+
+	if !domain.SubmodulePolicyRemote.IsRemote() {
+		t.Error("remote policy does not report itself as remote")
+	}
+	for _, policy := range []domain.SubmodulePolicy{"", domain.SubmodulePolicyPinned} {
+		if policy.IsRemote() {
+			t.Errorf("policy %q reports itself as remote", policy)
+		}
+	}
+}
+
+func TestPreset_ValidateRejectsUnknownSubmodulePolicy(t *testing.T) {
+	t.Parallel()
+
+	p := domain.Preset{
+		ID:         "taurustls",
+		Repo:       "github.com/JPeterMugaas/TaurusTLS",
+		DefaultRef: domain.PresetRef{Kind: domain.RefKindDefault},
+		Submodules: "tips",
+	}
+	if err := p.Validate(); err == nil {
+		t.Fatal("an unknown submodule policy was accepted")
+	}
+}
+
+func TestPackage_ModuleSubmodulePolicy(t *testing.T) {
+	t.Parallel()
+
+	pkg := domain.NewPackage()
+	pkg.Submodules = map[string]string{
+		"github.com/JPeterMugaas/TaurusTLS": string(domain.SubmodulePolicyRemote),
+		"delphi-neon":                       string(domain.SubmodulePolicyPinned),
+		"github.com/x/blank":                "",
+	}
+
+	cases := map[string]domain.SubmodulePolicy{
+		// Matched on the module directory name, so the full key and the bare
+		// name both resolve.
+		"github.com/JPeterMugaas/TaurusTLS": domain.SubmodulePolicyRemote,
+		"TaurusTLS":                         domain.SubmodulePolicyRemote,
+		"taurustls":                         domain.SubmodulePolicyRemote,
+		"delphi-neon":                       domain.SubmodulePolicyPinned,
+		"blank":                             domain.SubmodulePolicyPinned,
+		"never-declared":                    domain.SubmodulePolicyPinned,
+	}
+	for name, want := range cases {
+		if got := pkg.ModuleSubmodulePolicy(name); got != want {
+			t.Errorf("ModuleSubmodulePolicy(%q) = %q, want %q", name, got, want)
+		}
+	}
+
+	var nilPkg *domain.Package
+	if got := nilPkg.ModuleSubmodulePolicy("anything"); got != domain.SubmodulePolicyPinned {
+		t.Errorf("nil package policy = %q, want pinned", got)
+	}
+}

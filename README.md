@@ -185,6 +185,18 @@ bossy preset import ./presets.json
 `--ref` takes `branch:<name>`, `tag:<name>`, `commit:<40-hex-sha>` or a bare
 `default`. `update` patches only the fields you pass.
 
+`--submodules remote` is the opt-in equivalent of
+`git submodule update --remote`: each submodule advances to the tip of its
+configured branch instead of sitting at the commit the superproject records.
+On its own that would make an install unreproducible, so bossy splits it —
+resolving runs the advance once and records the resulting commits in
+`bossy-lock.json`, and an install replaying a lock checks those commits out
+rather than chasing the tips again. `bossy update` re-resolves. The declared
+intent floats; an install from a committed lock does not.
+
+The policy is written into `bossy.json` as well as the catalog, because CI
+installs from the manifest and never reads the catalog.
+
 `add`, `update` and `rm` write your local catalog only. Contributing an entry to
 the shared catalog is a merge request against the catalog repository, which is
 the review step you want before an entry reaches every machine.
@@ -203,7 +215,8 @@ catalog repository carries its entries in `presets.json` at its root:
       "default_ref": { "kind": "tag", "value": "3.4.2-magnesium" },
       "searchpaths": ["sources", "lib/dmustache", "lib/loggerpro"],
       "platforms": ["Win32", "Win64", "Win64x", "Linux64"],
-      "tags": ["web", "gtr-standard"]
+      "tags": ["web", "gtr-standard"],
+      "submodules": "pinned"
     }
   ]
 }

@@ -40,6 +40,8 @@ type presetFields struct {
 	platformsSet   bool
 	tags           []string
 	tagsSet        bool
+	submodules     string
+	submodulesSet  bool
 }
 
 // editAction is the testable core of add, update and rm.
@@ -118,6 +120,21 @@ func (a editAction) apply(preset domain.Preset) (domain.Preset, error) {
 	if set(f.descriptionSet) {
 		preset.Description = f.description
 	}
+	applyListFields(&preset, f, set)
+
+	if err := applyRefAndPolicy(&preset, f, set, a.mode); err != nil {
+		return domain.Preset{}, err
+	}
+
+	if err := preset.Validate(); err != nil {
+		return domain.Preset{}, err
+	}
+	return preset, nil
+}
+
+// applyListFields overlays the repeatable flags. An empty slice means the flag
+// was not given, so it leaves the stored value alone.
+func applyListFields(preset *domain.Preset, f presetFields, set func(bool) bool) {
 	if set(f.searchPathsSet) && len(f.searchPaths) > 0 {
 		preset.SearchPaths = f.searchPaths
 	}
@@ -127,18 +144,26 @@ func (a editAction) apply(preset domain.Preset) (domain.Preset, error) {
 	if set(f.tagsSet) && len(f.tags) > 0 {
 		preset.Tags = f.tags
 	}
-	if set(f.refSet) && (f.ref != "" || a.mode == modeAdd) {
+}
+
+// applyRefAndPolicy overlays the two flags that have to be parsed and checked
+// before they can be stored.
+func applyRefAndPolicy(preset *domain.Preset, f presetFields, set func(bool) bool, mode editMode) error {
+	if set(f.submodulesSet) && f.submodules != "" {
+		policy := domain.SubmodulePolicy(f.submodules)
+		if err := policy.Validate(); err != nil {
+			return err
+		}
+		preset.Submodules = policy
+	}
+	if set(f.refSet) && (f.ref != "" || mode == modeAdd) {
 		ref, err := parseRefFlag(f.ref)
 		if err != nil {
-			return domain.Preset{}, err
+			return err
 		}
 		preset.DefaultRef = ref
 	}
-
-	if err := preset.Validate(); err != nil {
-		return domain.Preset{}, err
-	}
-	return preset, nil
+	return nil
 }
 
 // parseRefFlag turns the --ref flag into a reference.
@@ -175,6 +200,8 @@ func bindPresetFlags(cmd *cobra.Command, f *presetFields) {
 		"directory inside the dependency to put on the Delphi search path (repeatable)")
 	cmd.Flags().StringSliceVar(&f.platforms, "platform", nil, "supported platform (repeatable)")
 	cmd.Flags().StringSliceVar(&f.tags, "tag", nil, "tag used for filtering and 'bossy add --tag' (repeatable)")
+	cmd.Flags().StringVar(&f.submodules, "submodules", "",
+		"submodule policy: pinned (default) or remote, which advances each submodule to its branch tip")
 }
 
 // captureChangedFlags records which of the shared flags the user actually
@@ -187,6 +214,7 @@ func captureChangedFlags(cmd *cobra.Command, f *presetFields) {
 	f.searchPathsSet = cmd.Flags().Changed("searchpath")
 	f.platformsSet = cmd.Flags().Changed("platform")
 	f.tagsSet = cmd.Flags().Changed("tag")
+	f.submodulesSet = cmd.Flags().Changed("submodules")
 }
 
 // renderEdit prints the result of a mutation, or dies with a readable message.

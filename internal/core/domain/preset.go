@@ -111,6 +111,8 @@ type Preset struct {
 	SearchPaths []string  `json:"searchpaths,omitempty"`
 	Platforms   []string  `json:"platforms,omitempty"`
 	Tags        []string  `json:"tags,omitempty"`
+	// Submodules is the submodule resolution policy; empty means pinned.
+	Submodules SubmodulePolicy `json:"submodules,omitempty"`
 }
 
 // Validate reports whether the preset is complete enough to install from.
@@ -122,6 +124,9 @@ func (p Preset) Validate() error {
 		return fmt.Errorf("preset %q has no repository", p.ID)
 	}
 	if err := p.DefaultRef.Validate(); err != nil {
+		return fmt.Errorf("preset %q: %w", p.ID, err)
+	}
+	if err := p.Submodules.Validate(); err != nil {
 		return fmt.Errorf("preset %q: %w", p.ID, err)
 	}
 	return nil
@@ -231,4 +236,39 @@ func MergeCatalogs(remote, local Catalog) []Preset {
 		return strings.ToLower(out[i].ID) < strings.ToLower(out[j].ID)
 	})
 	return out
+}
+
+// SubmodulePolicy says how a dependency's git submodules are resolved.
+type SubmodulePolicy string
+
+// The submodule policies a preset may declare.
+const (
+	// SubmodulePolicyPinned checks submodules out at the commits the
+	// superproject records. This is git's own default and bossy's.
+	SubmodulePolicyPinned SubmodulePolicy = "pinned"
+	// SubmodulePolicyRemote advances each submodule to the tip of its
+	// configured branch, the equivalent of `git submodule update --remote`.
+	//
+	// On its own this would make an install non-reproducible, which is the
+	// property the lock exists to provide. Bossy resolves the tips once and
+	// records the resulting commits in bossy-lock.json, so the declared intent
+	// floats while an install from a committed lock does not.
+	SubmodulePolicyRemote SubmodulePolicy = "remote"
+)
+
+// Validate reports whether the policy is one bossy understands. An empty
+// policy means the default and is accepted.
+func (p SubmodulePolicy) Validate() error {
+	switch p {
+	case "", SubmodulePolicyPinned, SubmodulePolicyRemote:
+		return nil
+	default:
+		return fmt.Errorf("unknown submodule policy %q (expected %q or %q)",
+			p, SubmodulePolicyPinned, SubmodulePolicyRemote)
+	}
+}
+
+// IsRemote reports whether submodules should track their branch tips.
+func (p SubmodulePolicy) IsRemote() bool {
+	return p == SubmodulePolicyRemote
 }

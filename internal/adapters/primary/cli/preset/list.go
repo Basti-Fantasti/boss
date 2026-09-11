@@ -121,6 +121,9 @@ func (a showAction) run(svc *presets.Service) ([]string, error) {
 	if len(preset.Tags) > 0 {
 		lines = append(lines, "tags         "+strings.Join(preset.Tags, ", "))
 	}
+	if preset.Submodules.IsRemote() {
+		lines = append(lines, "submodules   remote (advanced to branch tips, resolved commits go in the lock)")
+	}
 	return lines, nil
 }
 

@@ -286,3 +286,44 @@ func TestLooksLikeRepositoryKey(t *testing.T) {
 		}
 	}
 }
+
+// A preset asking for floating submodules has to say so in bossy.json: CI never
+// reads the catalog, it installs from the committed manifest.
+func TestApplyToManifest_WritesRemoteSubmodulePolicy(t *testing.T) {
+	t.Parallel()
+
+	pkg := domain.NewPackage()
+	applyToManifest(pkg, []tui.Selection{{
+		Preset: domain.Preset{
+			ID:         "taurustls",
+			Repo:       "github.com/JPeterMugaas/TaurusTLS",
+			Submodules: domain.SubmodulePolicyRemote,
+		},
+		Ref: domain.PresetRef{Kind: domain.RefKindBranch, Value: "main"},
+	}})
+
+	if got := pkg.ModuleSubmodulePolicy("TaurusTLS"); got != domain.SubmodulePolicyRemote {
+		t.Errorf("policy = %q, want %q; manifest holds %v", got, domain.SubmodulePolicyRemote, pkg.Submodules)
+	}
+}
+
+// Recording "pinned" on every entry would fill the manifest with restatements
+// of git's own default.
+func TestApplyToManifest_DefaultSubmodulePolicyWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	for _, policy := range []domain.SubmodulePolicy{"", domain.SubmodulePolicyPinned} {
+		pkg := domain.NewPackage()
+		applyToManifest(pkg, []tui.Selection{{
+			Preset: domain.Preset{ID: "neon", Repo: "github.com/paolo-rossi/delphi-neon", Submodules: policy},
+			Ref:    domain.PresetRef{Kind: domain.RefKindDefault},
+		}})
+
+		if len(pkg.Submodules) != 0 {
+			t.Errorf("policy %q wrote %v, want nothing", policy, pkg.Submodules)
+		}
+		if got := pkg.ModuleSubmodulePolicy("delphi-neon"); got != domain.SubmodulePolicyPinned {
+			t.Errorf("policy %q reads back as %q, want pinned", policy, got)
+		}
+	}
+}

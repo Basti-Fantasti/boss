@@ -34,7 +34,7 @@ func TestPackage_AddDependency(t *testing.T) {
 			addDep: "github.com/basti-fantasti/bossy",
 			addVer: "2.0.0",
 			expectedDeps: map[string]string{
-				"github.com/existing/repo": "1.0.0",
+				"github.com/existing/repo":        "1.0.0",
 				"github.com/basti-fantasti/bossy": "2.0.0",
 			},
 		},
@@ -148,8 +148,8 @@ func TestPackage_UninstallDependency(t *testing.T) {
 		{
 			name: "uninstall existing dependency",
 			initialDeps: map[string]string{
-				"github.com/basti-fantasti/bossy":  "1.0.0",
-				"github.com/hashload/horse": "2.0.0",
+				"github.com/basti-fantasti/bossy": "1.0.0",
+				"github.com/hashload/horse":       "2.0.0",
 			},
 			uninstallDep:  "github.com/basti-fantasti/bossy",
 			expectedCount: 1,
@@ -233,8 +233,8 @@ func TestPackage_GetParsedDependencies(t *testing.T) {
 			name: "with dependencies",
 			pkg: &domain.Package{
 				Dependencies: map[string]string{
-					"github.com/basti-fantasti/bossy":  "1.0.0",
-					"github.com/hashload/horse": "^2.0.0",
+					"github.com/basti-fantasti/bossy": "1.0.0",
+					"github.com/hashload/horse":       "^2.0.0",
 				},
 			},
 			expectedCount: 2,
@@ -358,4 +358,3 @@ func (m *MockFileSystem) Exists(name string) bool {
 func (m *MockFileSystem) IsDir(_ string) bool {
 	return false
 }
-

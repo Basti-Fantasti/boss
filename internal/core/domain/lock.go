@@ -21,8 +21,15 @@ type LockedDependency struct {
 	Commit    string              `json:"commit,omitempty"`
 	Hash      string              `json:"hash"`
 	Artifacts DependencyArtifacts `json:"artifacts"`
-	Failed    bool                `json:"-"`
-	Changed   bool                `json:"-"`
+	// Submodules maps a submodule path to the commit it was resolved to.
+	//
+	// Only written for dependencies declaring the "remote" submodule policy.
+	// That policy advances each submodule to its branch tip, which on its own
+	// would make an install non-reproducible; recording the resolved commits
+	// here is what lets a later install replay them instead of re-resolving.
+	Submodules map[string]string `json:"submodules,omitempty"`
+	Failed     bool              `json:"-"`
+	Changed    bool              `json:"-"`
 }
 
 // PackageLock represents the lock file for a package.

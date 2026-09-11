@@ -27,6 +27,18 @@ history, see the upstream repository.
   contributing a shared entry goes through a merge request on the catalog repository.
   A sync validates the whole downloaded catalog before writing, so a repository with
   one bad entry cannot leave a machine with no catalog at all.
+- An opt-in `remote` submodule policy, for dependencies whose submodules are meant to
+  track their branch tips rather than the commits the superproject records —
+  `git submodule update --remote`, which bossy previously had no equivalent of.
+  Declared per preset with `bossy preset add --submodules remote` and carried into
+  `bossy.json`, since CI installs from the manifest and never reads the catalog.
+  Floating submodules and a lock file pull in opposite directions, so the two are
+  split: resolving advances the submodules once and records the resulting commits in
+  `bossy-lock.json`, and an install replaying a lock checks those commits out instead
+  of chasing the tips again. `bossy update` re-resolves. Implemented on both git
+  backends — `--remote` natively, and by resolving each submodule's branch tip
+  directly under go-git, which has no equivalent flag. A commit read back from a lock
+  is refused unless it is a full hex SHA, since it reaches a git command line.
 - Remote branches and tags can be listed without cloning on both git backends
   (`ls-remote` natively, an in-memory storer under go-git). Both apply the same
   `refs/heads` and `refs/tags` allowlist, so neither offers a server-advertised

@@ -214,9 +214,9 @@ func TestGetDependencies(t *testing.T) {
 		{
 			name: "multiple dependencies",
 			deps: map[string]string{
-				"github.com/basti-fantasti/bossy":  "1.0.0",
-				"github.com/hashload/horse": "^2.0.0",
-				"github.com/user/repo":      "~1.5.0",
+				"github.com/basti-fantasti/bossy": "1.0.0",
+				"github.com/hashload/horse":       "^2.0.0",
+				"github.com/user/repo":            "~1.5.0",
 			},
 			expected: 3,
 		},
@@ -319,4 +319,3 @@ func TestDependency_GetURLPrefix(t *testing.T) {
 		})
 	}
 }
-

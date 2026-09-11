@@ -150,13 +150,21 @@ func sortSelections(selections []tui.Selection) []tui.Selection {
 // would restrict the dependency to nothing rather than leaving it unrestricted.
 func applyToManifest(pkg *domain.Package, selections []tui.Selection) {
 	for _, sel := range selections {
-		if len(sel.Preset.SearchPaths) == 0 {
-			continue
+		if len(sel.Preset.SearchPaths) > 0 {
+			if pkg.SearchPaths == nil {
+				pkg.SearchPaths = map[string][]string{}
+			}
+			pkg.SearchPaths[sel.Preset.Repo] = sel.Preset.SearchPaths
 		}
-		if pkg.SearchPaths == nil {
-			pkg.SearchPaths = map[string][]string{}
+
+		// Only a non-default policy is written. Recording "pinned" everywhere
+		// would fill the manifest with restatements of git's own behaviour.
+		if sel.Preset.Submodules.IsRemote() {
+			if pkg.Submodules == nil {
+				pkg.Submodules = map[string]string{}
+			}
+			pkg.Submodules[sel.Preset.Repo] = string(sel.Preset.Submodules)
 		}
-		pkg.SearchPaths[sel.Preset.Repo] = sel.Preset.SearchPaths
 	}
 }
 

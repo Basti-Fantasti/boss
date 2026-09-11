@@ -655,6 +655,8 @@ func (ic *installContext) checkoutAndUpdate(
 		return err
 	}
 
+	ic.applySubmodulePolicy(dep)
+
 	// Skip pull on detached-HEAD checkouts — they're pinned.
 	if isHashRef {
 		return nil
@@ -672,6 +674,61 @@ func (ic *installContext) checkoutAndUpdate(
 		ic.addWarning(fmt.Sprintf("%s: %s", dep.Name(), warnMsg))
 	}
 	return nil
+}
+
+// applySubmodulePolicy honours a dependency's declared submodule policy.
+//
+// The default is git's own: submodules stay at the commits the superproject
+// records, which the clone already did, so there is nothing to do.
+//
+// The "remote" policy is the opt-in equivalent of
+// `git submodule update --remote` — each submodule advances to its branch tip.
+// On its own that would make an install non-reproducible, so it is split in
+// two: resolving runs the advance once and records the resulting commits in
+// bossy-lock.json, and an install replaying a lock checks those commits out
+// instead of chasing the tips again. The declared intent floats; an install
+// from a committed lock does not.
+//
+// A failure is a warning rather than a hard error. Falling back leaves the
+// submodules at the superproject's recorded commits, which is git's default and
+// a coherent state — but a different tree from the one asked for, so it is said
+// out loud rather than passed over.
+func (ic *installContext) applySubmodulePolicy(dep domain.Dependency) {
+	if !ic.root.ModuleSubmodulePolicy(dep.Repository).IsRemote() {
+		return
+	}
+
+	locked := ic.rootLocked.GetInstalled(dep)
+
+	if ic.useLockedVersion && len(locked.Submodules) > 0 {
+		if err := git.CheckoutSubmodules(dep, locked.Submodules); err != nil {
+			ic.warnSubmodules(dep, fmt.Sprintf("could not replay locked submodule commits: %s", err))
+		}
+		return
+	}
+
+	commits, err := git.AdvanceSubmodulesToBranchTips(dep)
+	if err != nil {
+		ic.warnSubmodules(dep, fmt.Sprintf("could not advance submodules to their branch tips: %s", err))
+		return
+	}
+
+	locked.Submodules = commits
+	locked.Changed = true
+	ic.rootLocked.SetInstalled(dep, locked)
+
+	if !ic.progress.IsEnabled() && len(commits) > 0 {
+		msg.Debug("  🔗 %s: %d submodule(s) advanced to their branch tips", dep.Name(), len(commits))
+	}
+}
+
+// warnSubmodules reports a submodule problem on both channels the installer
+// uses, matching how pull failures are surfaced.
+func (ic *installContext) warnSubmodules(dep domain.Dependency, text string) {
+	if !ic.progress.IsEnabled() {
+		msg.Warn("  ⚠️ %s: %s", dep.Name(), text)
+	}
+	ic.addWarning(fmt.Sprintf("%s: %s", dep.Name(), text))
 }
 
 func (ic *installContext) getVersion(

@@ -18,6 +18,7 @@ type Package struct {
 	BrowsingPath string              `json:"browsingpath"`
 	Projects     []string            `json:"projects"`
 	SearchPaths  map[string][]string `json:"searchpaths,omitempty"`
+	Submodules   map[string]string   `json:"submodules,omitempty"`
 	Scripts      map[string]string   `json:"scripts,omitempty"`
 	Dependencies map[string]string   `json:"dependencies"`
 	Engines      *PackageEngines     `json:"engines,omitempty"`
@@ -85,6 +86,28 @@ func (p *Package) ModuleSearchPaths(moduleName string) ([]string, bool) {
 		}
 	}
 	return nil, false
+}
+
+// ModuleSubmodulePolicy returns the submodule resolution policy declared for a
+// module directory, defaulting to pinned.
+//
+// The policy has to live in bossy.json rather than only in the preset catalog,
+// because CI never reads the catalog — it installs from a committed manifest.
+// Keys are matched the same way ModuleSearchPaths matches them.
+func (p *Package) ModuleSubmodulePolicy(moduleName string) SubmodulePolicy {
+	if p == nil || len(p.Submodules) == 0 {
+		return SubmodulePolicyPinned
+	}
+	want := NormalizeModuleKey(moduleName)
+	for key, policy := range p.Submodules {
+		if NormalizeModuleKey(key) == want {
+			if policy == "" {
+				return SubmodulePolicyPinned
+			}
+			return SubmodulePolicy(policy)
+		}
+	}
+	return SubmodulePolicyPinned
 }
 
 // NormalizeModuleKey reduces a dependency reference to the lowercase module
