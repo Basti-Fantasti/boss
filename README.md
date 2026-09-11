@@ -388,6 +388,17 @@ bossy <command> --help
 
 ## Configuration
 
+### > Environment Variables
+
+| Variable | Effect |
+| --- | --- |
+| `BOSSY_HOME` | Overrides the per-user bossy directory (default `~/.bossy`). Everything else lives under it: `cache/`, `presets/`, `bossy.cfg.json`. Point it at a temporary directory to try something out without touching your real setup. |
+| `BOSSY_GIT_SHALLOW` | `1` or `true` enables shallow clones for this invocation, see [Shallow Clone](#-shallow-clone). |
+
+Both were called `BOSS_HOME` and `BOSS_GIT_SHALLOW` before the fork was renamed.
+The old names are still read, and the new ones win when both are set, so a CI
+runner or build server can be migrated on its own schedule.
+
 ### > Cache
 
 Manage the Bossy cache. Remove all cached modules to free up disk space:
@@ -451,11 +462,11 @@ You can also temporarily enable shallow clone using an environment variable:
 
 ```sh
 # Windows
-set BOSS_GIT_SHALLOW=1
+set BOSSY_GIT_SHALLOW=1
 bossy install
 
 # Linux/macOS
-BOSS_GIT_SHALLOW=1 bossy install
+BOSSY_GIT_SHALLOW=1 bossy install
 ```
 
 ### > SSH Behaviour

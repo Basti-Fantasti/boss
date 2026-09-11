@@ -64,9 +64,9 @@ func TestGlobalConfiguration(t *testing.T) {
 }
 
 func TestGetBossHome(t *testing.T) {
-	t.Run("with BOSS_HOME set", func(t *testing.T) {
+	t.Run("with BOSSY_HOME set", func(t *testing.T) {
 		tempDir := t.TempDir()
-		t.Setenv("BOSS_HOME", tempDir)
+		t.Setenv("BOSSY_HOME", tempDir)
 
 		result := env.GetBossHome()
 		expected := tempDir
@@ -75,7 +75,33 @@ func TestGetBossHome(t *testing.T) {
 		}
 	})
 
-	t.Run("without BOSS_HOME", func(t *testing.T) {
+	// The old name stays readable so CI jobs and build-server configurations
+	// that set it keep working after the rename.
+	t.Run("with only the legacy BOSS_HOME set", func(t *testing.T) {
+		tempDir := t.TempDir()
+		t.Setenv("BOSS_HOME", tempDir)
+
+		result := env.GetBossHome()
+		if result != tempDir {
+			t.Errorf("GetBossHome() = %q, want %q", result, tempDir)
+		}
+	})
+
+	// A machine mid-migration has both set. The new name has to win, otherwise
+	// the rename could not be rolled out one variable at a time.
+	t.Run("BOSSY_HOME wins over BOSS_HOME", func(t *testing.T) {
+		preferred := t.TempDir()
+		legacy := t.TempDir()
+		t.Setenv("BOSS_HOME", legacy)
+		t.Setenv("BOSSY_HOME", preferred)
+
+		result := env.GetBossHome()
+		if result != preferred {
+			t.Errorf("GetBossHome() = %q, want %q", result, preferred)
+		}
+	})
+
+	t.Run("without BOSSY_HOME", func(t *testing.T) {
 		// Note: cannot unset env in parallel tests, just verify the function works
 		result := env.GetBossHome()
 		// Should contain the boss home folder

@@ -129,7 +129,7 @@ build:
 > and rewrites the lock. Run it locally, intentionally, when you want to
 > pick up new upstream versions — never as part of a normal CI build.
 
-Shallow clone (`bossy config git shallow true`, or `BOSS_GIT_SHALLOW=1`)
+Shallow clone (`bossy config git shallow true`, or `BOSSY_GIT_SHALLOW=1`)
 is safe to combine with this. All branch tips are fetched, so
 branch-pinned dependencies still resolve, and a SHA older than the
 shallow cut-off triggers an automatic deepening fetch. Caches created by

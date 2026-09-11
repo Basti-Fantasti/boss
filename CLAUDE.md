@@ -67,7 +67,7 @@ Key invariants:
 
 - Two manifest formats live in `internal/core/domain`: **`bossy.json`** (`package.go`, user-authored) and **`bossy-lock.json`** (`lock.go`, generated). Treat the lock as derivable; never hand-edit-style logic should leak into domain types.
 - Git access always goes through `core/ports.Git`. The runtime implementation is chosen at startup based on `boss config git mode` (embedded = go-git, native = `git` binary). When adding git operations, extend the port and implement in **both** `git_embedded.go` and `git_native.go`.
-- Shallow clone is opt-in (`boss config git shallow true` or `BOSS_GIT_SHALLOW=1`). Code that walks history must tolerate a shallow clone or explicitly request a deep one.
+- Shallow clone is opt-in (`bossy config git shallow true` or `BOSSY_GIT_SHALLOW=1`). Code that walks history must tolerate a shallow clone or explicitly request a deep one.
 - Delphi compiler discovery lives in `adapters/secondary/registry` (Windows-only via `registry_win.go`; `registry_unix.go` is a stub). `services/compilerselector` chooses the active toolchain honoring `bossy.json`'s `toolchain` block.
 - The `paths` service is what mutates Delphi IDE library/browsing paths — be careful, it edits user IDE state. `librarypath` is its parsing primitive.
 - CLI commands should be thin: parse flags, build the service, call it, render via `pkg/msg`. Business logic belongs in `core/services`.

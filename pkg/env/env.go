@@ -103,9 +103,23 @@ func GetCacheDir() string {
 	return filepath.Join(GetBossHome(), "cache")
 }
 
+// lookupEnv reads the BOSSY_-prefixed variable, falling back to the BOSS_
+// name the tool used before it was renamed.
+//
+// The fallback is not deprecation politeness: these variables are set in CI
+// job definitions and build-server service configurations that are not in this
+// repository, so dropping the old name would break runners that nobody thought
+// to update.
+func lookupEnv(name string) string {
+	if v := os.Getenv("BOSSY_" + name); v != "" {
+		return v
+	}
+	return os.Getenv("BOSS_" + name)
+}
+
 // GetBossHome returns the Boss home directory.
 func GetBossHome() string {
-	homeDir := os.Getenv("BOSS_HOME")
+	homeDir := lookupEnv("HOME")
 	if homeDir == "" {
 		home, err := homedir.Dir()
 		if err != nil {
@@ -121,7 +135,7 @@ func GetBossHome() string {
 // This can be configured via 'bossy config git shallow true|false'.
 // Shallow clones are faster but don't include full git history.
 func GetGitShallow() bool {
-	if shallow := os.Getenv("BOSS_GIT_SHALLOW"); shallow == "true" || shallow == "1" {
+	if shallow := lookupEnv("GIT_SHALLOW"); shallow == "true" || shallow == "1" {
 		return true
 	}
 	return GlobalConfiguration().GitShallow
