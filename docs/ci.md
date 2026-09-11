@@ -246,6 +246,65 @@ preserves a value it did not set:
   "GIT_SSH_COMMAND", "C:/Windows/System32/OpenSSH/ssh.exe", "User")
 ```
 
+### The `.dproj` shows as modified after `bossy install`, only on the runner
+
+Symptom: a build step that compares the project file before and after the
+install — such as delphi-build-worker's `verify_dproj` — reports it as changed,
+while the same install on a developer machine leaves it alone. `git diff` shows
+nothing.
+
+```
+TestBossy.dproj was modified by bossy install — the committed project file
+does not match bossy.json.
+```
+
+**Cause:** line endings, on a bossy older than the fix for this. The Delphi IDE
+writes `.dproj` files with CRLF. Git for Windows defaults to
+`core.autocrlf=true`, so the runner checks the file out as CRLF; older bossy
+versions wrote it back as LF, because the XML parser folds CRLF into LF and the
+original ending was not restored. `git diff` normalises line endings before
+comparing, so it cannot see the change — only a byte comparison can.
+
+**Fix:** upgrade `bossy.exe` on the runner. Current versions keep whatever
+ending the file already had.
+
+To confirm before upgrading, on the runner, in a checked-out project:
+
+```powershell
+$before = (Get-FileHash Some.dproj).Hash
+bossy install
+"{0} -> {1}" -f $before, (Get-FileHash Some.dproj).Hash
+```
+
+Two different hashes with an empty `git diff` is this, and nothing else.
+
+### `Compiler selection failed: no Delphi installation found`
+
+Symptom, in a CI job only:
+
+```
+❌ Version not found for path C:\Program Files (x86)\Embarcadero\Studio\37.0\bin
+❌ Registry pathSoftware\Embarcadero\BDS\Library not exists
+Compiler selection failed: no Delphi installation found. Falling back to default.
+```
+
+**Cause:** the runner service is running as a machine account — `LocalSystem`,
+`NetworkService` — rather than as a user with Delphi installed. Delphi registers
+itself under `HKEY_CURRENT_USER`, which for those accounts holds nothing.
+
+The job log names the account without your having to look it up: the `.bossy`
+paths it prints are under that account's profile.
+`C:\Windows\system32\config\systemprofile\.bossy` is `LocalSystem`.
+
+A project whose dependencies have no packages to compile still finishes — the
+message is a warning and the search paths are written either way — so this can
+sit unnoticed until the first dependency that does need compiling.
+
+**Fix:** run the runner service as the account you completed
+[the setup](#one-time-setup-on-a-windows-build-server) under, then re-run
+`bossy config delphi list` as that account to confirm. Running the setup as one
+account and the service as another is the usual way this happens.
+
 ### `SSH cloning requires git to be installed and on PATH`
 
 The runner image does not have `git`. Install it (`apt-get install -y git`

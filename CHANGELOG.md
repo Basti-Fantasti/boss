@@ -12,6 +12,14 @@ history, see the upstream repository.
 
 ### Fixed
 
+- Project files keep the line endings they already had. `.dproj` and `.lpi` files are
+  parsed as XML, and the XML spec requires a parser to fold CRLF into LF, so writing the
+  document back rewrote every line of a project file saved by the Delphi IDE. Beyond the
+  noise in `git status`, it broke CI: with `core.autocrlf=true` the runner checks the
+  project file out as CRLF, `bossy install` wrote it back as LF, and a build step
+  comparing the bytes before and after the install reported the committed project file
+  as out of date. `git diff` could not see it, because git normalises line endings
+  before comparing.
 - `bossy install <pkg>` and `bossy update <pkg>` no longer wipe other installed modules
   and their lock entries. Post-install reconciliation now runs only on full-tree
   invocations; targeted runs touch only the requested dependencies.

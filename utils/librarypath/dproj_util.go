@@ -3,6 +3,7 @@
 package librarypath
 
 import (
+	"bytes"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,6 +15,11 @@ import (
 	"github.com/basti-fantasti/bossy/pkg/env"
 	"github.com/basti-fantasti/bossy/pkg/msg"
 	"github.com/beevik/etree"
+)
+
+const (
+	crlf = "\r\n"
+	lf   = "\n"
 )
 
 var (
@@ -43,8 +49,12 @@ func updateOtherUnitFilesProject(pkg *domain.Package, lpiName string) {
 		msg.Err("❌ .lpi not found.")
 		return
 	}
-	err = doc.ReadFromFile(lpiName)
+	original, err := os.ReadFile(lpiName)
 	if err != nil {
+		msg.Err("❌ Error on read lpi: %s", err)
+		return
+	}
+	if err = doc.ReadFromBytes(original); err != nil {
 		msg.Err("❌ Error on read lpi: %s", err)
 		return
 	}
@@ -70,7 +80,7 @@ func updateOtherUnitFilesProject(pkg *domain.Package, lpiName string) {
 	doc.WriteSettings.CanonicalEndTags = false
 	doc.WriteSettings.CanonicalText = true
 
-	if err = doc.WriteToFile(lpiName); err != nil {
+	if err = writeKeepingLineEndings(doc, lpiName, original, info.Mode()); err != nil {
 		msg.Err("❌ Failed to write .lpi file: %v", err)
 	}
 }
@@ -117,8 +127,12 @@ func updateLibraryPathProject(pkg *domain.Package, dprojName string) {
 		msg.Err("❌ .dproj not found.")
 		return
 	}
-	err = doc.ReadFromFile(dprojName)
+	original, err := os.ReadFile(dprojName)
 	if err != nil {
+		msg.Err("❌ Error on read dproj: %s", err)
+		return
+	}
+	if err = doc.ReadFromBytes(original); err != nil {
 		msg.Err("❌ Error on read dproj: %s", err)
 		return
 	}
@@ -144,9 +158,41 @@ func updateLibraryPathProject(pkg *domain.Package, dprojName string) {
 	doc.WriteSettings.CanonicalEndTags = false
 	doc.WriteSettings.CanonicalText = true
 
-	if err = doc.WriteToFile(dprojName); err != nil {
+	if err = writeKeepingLineEndings(doc, dprojName, original, info.Mode()); err != nil {
 		msg.Err("❌ Failed to write .dproj file: %v", err)
 	}
+}
+
+// detectLineEnding reports the line ending a file already uses. A file holding
+// no line break at all is treated as LF, which is what etree writes.
+func detectLineEnding(content []byte) string {
+	if bytes.Contains(content, []byte(crlf)) {
+		return crlf
+	}
+	return lf
+}
+
+// writeKeepingLineEndings writes doc to name with the line ending original
+// already used.
+//
+// The XML spec requires a parser to normalise CRLF to LF, so a project file
+// saved by the Delphi IDE — which writes CRLF — comes back from etree as LF and
+// would be rewritten line for line. Beyond the noise in an IDE user's `git
+// status`, that breaks a build server: with core.autocrlf=true the runner
+// checks the file out as CRLF, and a CI step comparing the bytes before and
+// after `bossy install` sees a project file that no longer matches the one in
+// the repository. `git diff` cannot see it, because git normalises line endings
+// before comparing.
+func writeKeepingLineEndings(doc *etree.Document, name string, original []byte, mode os.FileMode) error {
+	out, err := doc.WriteToBytes()
+	if err != nil {
+		return err
+	}
+	if detectLineEnding(original) == crlf {
+		// etree writes LF only, so this cannot produce CRCRLF.
+		out = bytes.ReplaceAll(out, []byte(lf), []byte(crlf))
+	}
+	return os.WriteFile(name, out, mode.Perm())
 }
 
 // createTagLibraryPath creates the library path tag.
